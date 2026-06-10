@@ -1,0 +1,415 @@
+﻿    /* Design System & Variables */
+    :root {
+        --primary: #00A86B;
+        --primary-dark: #007A4D;
+        --secondary: #1B4F8A;
+        --bg-color: #F8F7F4;
+        --text-dark: #0D2F5E;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: rgba(255, 255, 255, 0.4);
+        --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Container and Glassmorphism */
+    .reclamation-page {
+        min-height: calc(100vh - 80px);
+        background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+        padding: 4rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Decorative background blobs */
+    .bg-blob-1 {
+        position: absolute; top: -10%; left: -10%; width: 50vw; height: 50vw;
+        background: radial-gradient(circle, rgba(0,168,107,0.15) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%; z-index: 0; pointer-events: none;
+    }
+    .bg-blob-2 {
+        position: absolute; bottom: -10%; right: -10%; width: 60vw; height: 60vw;
+        background: radial-gradient(circle, rgba(27,79,138,0.1) 0%, rgba(255,255,255,0) 70%);
+        border-radius: 50%; z-index: 0; pointer-events: none;
+    }
+
+    .form-panel {
+        position: relative;
+        z-index: 10;
+        max-width: 1000px;
+        margin: 0 auto;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        box-shadow: var(--shadow-lg);
+        padding: 3rem;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .form-title {
+        color: var(--text-dark);
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.025em;
+    }
+
+    .form-subtitle {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+    }
+
+    /* Steps and Transitions */
+    .form-step {
+        display: none;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .form-step.active {
+        display: block;
+        opacity: 1;
+        transform: translateY(0);
+        animation: fadeInStep 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes fadeInStep {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Progress Bar */
+    .progress-wrapper {
+        margin-bottom: 3rem;
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: 0.95rem;
+    }
+
+    .progress-track {
+        height: 10px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), #2ecc71);
+        border-radius: 999px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Type Selection Cards */
+    .type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .type-card {
+        background: white;
+        border: 2px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .type-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 168, 107, 0.1);
+    }
+
+    .type-card.selected {
+        border-color: var(--primary);
+        background: rgba(0, 168, 107, 0.03);
+        box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.1);
+    }
+
+    .type-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 1.25rem;
+        background: rgba(0, 168, 107, 0.1);
+        color: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+    
+    .type-icon svg { width: 32px; height: 32px; }
+
+    .type-card:hover .type-icon {
+        background: var(--primary);
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .type-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    /* Inputs & Form Controls */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: white;
+        color: var(--text-dark);
+        font-family: inherit;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(0, 168, 107, 0.15);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    /* Buttons */
+    .btn-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-custom {
+        padding: 0.875rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+    }
+
+    .btn-primary-custom {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 168, 107, 0.3);
+    }
+
+    .btn-primary-custom:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 168, 107, 0.4);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-outline:hover {
+        background: #f1f5f9;
+        color: var(--text-dark);
+    }
+
+    /* Location Widget */
+    .location-widget {
+        background: #f8fafc;
+        border: 1px dashed var(--primary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-top: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    .location-widget.success {
+        background: rgba(0, 168, 107, 0.05);
+        border-style: solid;
+    }
+
+    .location-btn {
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-dark);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-sm);
+    }
+    .location-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .location-btn i { animation: pulse 2s infinite; }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    /* Map Placeholder */
+    #mapContainer {
+        height: 200px;
+        border-radius: 8px;
+        margin-top: 1rem;
+        background-color: #e2e8f0;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>');
+        background-position: center;
+        background-repeat: no-repeat;
+        display: none;
+        position: relative;
+        overflow: hidden;
+    }
+    #mapContainer.show { display: block; }
+    .map-overlay {
+        position: absolute; inset: 0; background: rgba(0,168,107,0.1); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px);
+    }
+
+    /* Section Headers */
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* Vehicle Panels */
+    .vehicle-panel {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+    }
+    .vehicle-a-header { color: #eab308; /* Yellow for A */ }
+    .vehicle-b-header { color: #3b82f6; /* Blue for B */ }
+
+    /* Canvas Drawing Area */
+    .drawing-container {
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+        background: white;
+        position: relative;
+    }
+    
+    #croquisCanvas {
+        width: 100%;
+        height: 400px;
+        cursor: crosshair;
+        background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+
+    .drawing-tools {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        background: white;
+        padding: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+    }
+
+    .tool-btn {
+        width: 36px; height: 36px; border-radius: 6px; border: none; background: #f8fafc; color: var(--text-dark); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .tool-btn:hover { background: #e2e8f0; }
+    .tool-btn.active { background: var(--primary); color: white; }
+
+    /* Checkbox list */
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 4px;
+        border: 2px solid var(--primary);
+        accent-color: var(--primary);
+        cursor: pointer;
+    }
+    
+    .signature-pad {
+        border: 1px dashed var(--border-color);
+        height: 150px;
+        border-radius: 8px;
+        background: white;
+        margin-top: 1rem;
+        cursor: crosshair;
+    }
+
+    @media (max-width: 768px) {
+        .form-row { grid-template-columns: 1fr; gap: 1rem; }
+        .form-panel { padding: 1.5rem; }
+        .type-grid { grid-template-columns: 1fr; }
+    }

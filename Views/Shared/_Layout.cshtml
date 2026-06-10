@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BNA Assurances</title>
+    <meta name="description" content="BNA Assurances accompagne particuliers, professionnels et entreprises avec des solutions d'assurance fiables et modernes." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bnaGreen: '#00A86B',
+                        bnaDeepGreen: '#007A4D',
+                        bnaBlue: '#1B4F8A',
+                        bnaNavy: '#0D2F5E',
+                        bnaWarm: '#F8F7F4',
+                        bnaGold: '#C9A84C'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="bg-bnaWarm text-slate-950 antialiased">
+    <header id="siteHeader" class="site-header fixed inset-x-0 top-0 z-50">
+        <nav class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8" aria-label="Navigation principale">
+            <a class="brand-lockup" asp-controller="Home" asp-action="Index" aria-label="Accueil BNA Assurances">
+                <img class="brand-logo" src="~/images/bna_assurance.png" asp-append-version="true" alt="BNA Assurances" />
+            </a>
+
+            <div class="hidden items-center gap-6 xl:flex">
+                <a class="nav-link" asp-controller="Home" asp-action="Particuliers">Particuliers</a>
+                <a class="nav-link" href="/#produits">Professionnels & Indépendants</a>
+                <a class="nav-link" asp-controller="Home" asp-action="Entreprises">Entreprises</a>
+                <a class="nav-link" asp-controller="Home" asp-action="Actualites">Actualités</a>
+            </div>
+
+            <div class="hidden items-center gap-3 lg:flex">
+                <a class="btn btn-ghost" asp-controller="Home" asp-action="NosAgences">Nos Agences</a>
+                <a class="btn btn-primary" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+            </div>
+
+            <button id="mobileMenuButton" class="icon-button lg:hidden" type="button" aria-label="Ouvrir le menu" aria-controls="mobileMenu" aria-expanded="false">
+                <i data-lucide="menu"></i>
+            </button>
+        </nav>
+
+        <div id="mobileOverlay" class="mobile-overlay fixed inset-0 z-40 hidden bg-slate-950/50 opacity-0 backdrop-blur-sm"></div>
+        <aside id="mobileMenu" class="mobile-drawer fixed right-0 top-0 z-50 h-full w-[min(88vw,24rem)] translate-x-full bg-white p-6 shadow-2xl lg:hidden" aria-hidden="true">
+            <div class="flex items-center justify-between">
+                <a class="brand-lockup is-dark" asp-controller="Home" asp-action="Index" aria-label="Accueil BNA Assurances">
+                    <img class="brand-logo" src="~/images/bna_assurance.png" asp-append-version="true" alt="BNA Assurances" />
+                </a>
+                <button id="mobileMenuClose" class="icon-button is-dark" type="button" aria-label="Fermer le menu">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="mt-10 grid gap-4 text-base font-semibold text-bnaNavy">
+                <a asp-controller="Home" asp-action="Particuliers">Particuliers</a>
+                <a href="/#produits">Professionnels & Indépendants</a>
+                <a asp-controller="Home" asp-action="Entreprises">Entreprises</a>
+                <a href="/#produits">Spécialistes Construction</a>
+                <a href="/#services">Services en Ligne</a>
+                <a asp-controller="Home" asp-action="Actualites">Actualités</a>
+            </div>
+            <div class="mt-8 grid gap-3">
+                <a class="btn btn-ghost-dark justify-center" asp-controller="Home" asp-action="NosAgences">Nos Agences</a>
+                <a class="btn btn-primary justify-center" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+            </div>
+            <div class="mt-10 border-t border-slate-200 pt-6 text-sm text-slate-500">
+                Disponible partout en Tunisie grâce à 125 agences de proximité.
+            </div>
+        </aside>
+    </header>
+
+    <main id="top" role="main">
+        @RenderBody()
+    </main>
+
+    <footer class="bg-bnaNavy text-white">
+        <div class="mx-auto max-w-7xl px-5 py-16 lg:px-8">
+            <div class="mb-12 flex flex-col justify-between gap-8 border-b border-white/10 pb-10 lg:flex-row lg:items-center">
+                <a class="brand-lockup footer-logo-wrap" asp-controller="Home" asp-action="Index" aria-label="Accueil BNA Assurances">
+                    <img class="brand-logo" src="~/images/bna_assurance.png" asp-append-version="true" alt="BNA Assurances" />
+                </a>
+                <div class="flex items-center gap-2 rounded-full border border-white/15 p-1 text-sm font-semibold">
+                    <a class="rounded-full bg-white px-3 py-1.5 text-bnaNavy" href="#">FR</a>
+                    <a class="px-3 py-1.5 text-white/70 transition hover:text-white" href="#">AR</a>
+                    <a class="px-3 py-1.5 text-white/70 transition hover:text-white" href="#">EN</a>
+                </div>
+            </div>
+
+            <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <h2 class="footer-title">Particuliers</h2>
+                    <ul class="footer-list">
+                        <li><a href="#">Prévoyance</a></li>
+                        <li><a href="#">Santé</a></li>
+                        <li><a href="#">Auto/Moto</a></li>
+                        <li><a href="#">Habitation</a></li>
+                        <li><a href="#">Voyage</a></li>
+                        <li><a href="#">Épargne</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2 class="footer-title">Professionnels</h2>
+                    <ul class="footer-list">
+                        <li><a href="#">Responsabilité Civile</a></li>
+                        <li><a href="#">Flotte Auto</a></li>
+                        <li><a href="#">Multirisques</a></li>
+                        <li><a href="#">Construction</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2 class="footer-title">Services</h2>
+                    <ul class="footer-list">
+                        <li><a asp-controller="Home" asp-action="Devis">Devis en ligne</a></li>
+                        <li><a asp-controller="Reclamation" asp-action="Create">Déclarer un sinistre</a></li>
+                        <li><a asp-controller="Home" asp-action="NosAgences">Nos agences</a></li>
+                        <li><a href="#">BNA TV</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h2 class="footer-title">Contact</h2>
+                    <ul class="footer-list">
+                        <li>Rue du Lac d'Annecy, Tunis</li>
+                        <li><a href="tel:+21631350000">+216 31 350 000</a></li>
+                        <li><a href="mailto:contact@bna-assurances.com.tn">contact@bna-assurances.com.tn</a></li>
+                    </ul>
+                    <div class="mt-5 flex gap-3">
+                        <a class="social-link" href="#" aria-label="LinkedIn"><i data-lucide="linkedin"></i></a>
+                        <a class="social-link" href="#" aria-label="Facebook"><i data-lucide="facebook"></i></a>
+                        <a class="social-link" href="#" aria-label="Youtube"><i data-lucide="youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-12 flex flex-col justify-between gap-4 border-t border-white/10 pt-8 text-sm text-white/60 md:flex-row">
+                <p>© 2025 BNA Assurances. Tous droits réservés.</p>
+                <div class="flex flex-wrap gap-5">
+                    <a href="#">Mentions légales</a>
+                    <a href="#">Politique de confidentialité</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

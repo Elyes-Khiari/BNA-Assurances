@@ -1,0 +1,317 @@
+@{
+    ViewData["Title"] = "Accueil";
+}
+
+<section class="hero-section relative isolate overflow-hidden bg-bnaNavy pb-20 pt-32 text-white lg:min-h-screen lg:pb-24 lg:pt-36">
+    <div class="hero-pattern" aria-hidden="true"></div>
+    <div class="mx-auto grid max-w-7xl items-center gap-14 px-5 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
+        <div class="relative z-10">
+            <div class="eyebrow-pill border-white/15 bg-white/10 text-white backdrop-blur">
+                <i data-lucide="shield-check"></i>
+                2ème acteur du marché tunisien
+            </div>
+            <h1 class="mt-7 max-w-4xl font-display text-5xl font-extrabold leading-[0.98] tracking-normal sm:text-6xl lg:text-[5rem]">
+                Protégez ce qui compte <span class="text-bnaGreen">vraiment</span> pour vous.
+            </h1>
+            <p class="mt-7 max-w-2xl text-lg leading-8 text-white/72">
+                BNA Assurances vous accompagne avec des solutions sur mesure pour particuliers, professionnels et entreprises.
+            </p>
+            <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+                <a class="btn btn-primary btn-large" asp-controller="Home" asp-action="Devis">
+                    Obtenir un devis
+                    <i data-lucide="arrow-right"></i>
+                </a>
+                <a class="btn btn-outline-white btn-large" href="#produits">Découvrir nos produits</a>
+            </div>
+            <div class="mt-9 flex flex-wrap gap-x-7 gap-y-3 text-sm font-semibold text-white/80">
+                <span class="trust-item"><i data-lucide="check"></i>125 agences</span>
+                <span class="trust-item"><i data-lucide="check"></i>+30 ans d'expertise</span>
+                <span class="trust-item"><i data-lucide="check"></i>174M DT de chiffre d'affaires</span>
+            </div>
+        </div>
+
+        <div class="relative z-10 mx-auto w-full max-w-xl lg:max-w-none">
+            <div class="hero-visual">
+                <svg viewBox="0 0 620 620" role="img" aria-label="Illustration abstraite de bouclier BNA Assurances">
+                    <defs>
+                        <linearGradient id="shieldGradient" x1="100" y1="80" x2="520" y2="560" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#00A86B" />
+                            <stop offset="1" stop-color="#1B4F8A" />
+                        </linearGradient>
+                        <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="18" result="blur" />
+                            <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0 0 0 0 0 0.66 0 0 0 0 0.42 0 0 0 0.55 0" />
+                            <feBlend in="SourceGraphic" />
+                        </filter>
+                    </defs>
+                    <path class="shield-main" d="M310 46 506 122v143c0 146-83 261-196 309C197 526 114 411 114 265V122L310 46Z" fill="url(#shieldGradient)" filter="url(#softGlow)" />
+                    <path d="M310 92 464 151v116c0 113-61 203-154 247-93-44-154-134-154-247V151l154-59Z" fill="#0D2F5E" opacity=".72" />
+                    <path d="M210 276h220M236 218h168M246 334h148" stroke="#FFFFFF" stroke-opacity=".45" stroke-width="10" stroke-linecap="round" />
+                    <path d="M250 276 294 320 386 228" fill="none" stroke="#00A86B" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+                    <circle cx="116" cy="142" r="10" fill="#C9A84C" />
+                    <circle cx="526" cy="390" r="14" fill="#00A86B" opacity=".82" />
+                    <path d="M72 480c76-40 151-42 226-6 84 40 167 34 249-18" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="3" />
+                    <path d="M82 520c76-40 151-42 226-6 84 40 167 34 249-18" fill="none" stroke="#FFFFFF" stroke-opacity=".10" stroke-width="3" />
+                </svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="partners-section bg-white py-12" aria-labelledby="partnersTitle">
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+                <h2 id="partnersTitle" class="mt-4 font-display text-2xl font-extrabold tracking-normal text-bnaNavy md:text-3xl">
+                    Un réseau de confiance autour de nos assurés
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="partners-marquee" aria-label="Liste défilante des partenaires">
+        <div class="partners-fade partners-fade-left" aria-hidden="true"></div>
+        <div class="partners-fade partners-fade-right" aria-hidden="true"></div>
+        <div class="partners-track">
+            <div class="partners-set">
+                <div class="partner-logo-card" data-logo-file="images/partners/carthage-assistance.png"><span>Carthage Assistance</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/europ-assistance.png"><span>Europ Assistance</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/continental.webp"><span>Continental</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/hannover-re.png"><span>Hannover Re</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/odyssey.png"><span>Odyssey</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/tunis-re.png"><span>Tunis Re</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/saudi-re.png"><span>Saudi Re</span></div>
+            </div>
+            <div class="partners-set" aria-hidden="true">
+                <div class="partner-logo-card" data-logo-file="images/partners/carthage-assistance.png"><span>Carthage Assistance</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/europ-assistance.png"><span>Europ Assistance</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/continental.webp"><span>Continental</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/hannover-re.png"><span>Hannover Re</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/odyssey.png"><span>Odyssey</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/tunis-re.png"><span>Tunis Re</span></div>
+                <div class="partner-logo-card" data-logo-file="images/partners/saudi-re.png"><span>Saudi Re</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="produits" class="bg-white py-20 lg:py-28">
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="mx-auto max-w-3xl text-center">
+            <span class="eyebrow-pill mx-auto bg-bnaGreen/10 text-bnaDeepGreen">Nos produits</span>
+            <h2 class="section-title mt-5 text-bnaNavy">Une couverture complète, pour chaque moment de vie</h2>
+        </div>
+
+        <div class="mt-10 flex justify-center">
+            <div class="tab-list" role="tablist" aria-label="Catégories de produits">
+                <button class="tab-button is-active" type="button" role="tab" aria-selected="true" data-tab-target="particuliers">Particuliers</button>
+                <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab-target="professionnels">Professionnels</button>
+                <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab-target="entreprises">Entreprises</button>
+            </div>
+        </div>
+
+        <div class="tab-panels mt-10">
+            <div class="product-grid tab-panel is-active" data-tab-panel="particuliers">
+                <article class="product-card">
+                    <i data-lucide="users"></i>
+                    <h3>Ma Famille & Moi</h3>
+                    <p>Prévoyance, Santé, AWLADI et Voyage pour accompagner vos proches.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="home"></i>
+                    <h3>Mes Biens</h3>
+                    <p>Auto/Moto, Habitation, matériel informatique et bateau.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="piggy-bank"></i>
+                    <h3>Mon Argent</h3>
+                    <p>Épargne, retraite et garantie prêt avec une vision durable.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="car"></i>
+                    <h3>EVE Auto</h3>
+                    <p>Formules Confort, Confort Plus et Confort Gold.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="plane"></i>
+                    <h3>SAFAR Voyage</h3>
+                    <p>SAFAR First, Gold, Business et Student pour partir serein.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="graduation-cap"></i>
+                    <h3>Avenir Enfants</h3>
+                    <p>Épargne éducation pour préparer les projets de demain.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+            </div>
+
+            <div class="product-grid tab-panel" data-tab-panel="professionnels">
+                <article class="product-card">
+                    <i data-lucide="briefcase-business"></i>
+                    <h3>Responsabilité Civile</h3>
+                    <p>Une protection pensée pour les activités indépendantes et libérales.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="truck"></i>
+                    <h3>Flotte Auto Professionnelle</h3>
+                    <p>Des garanties adaptées aux véhicules essentiels à votre activité.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="store"></i>
+                    <h3>Multirisques Commerce</h3>
+                    <p>Locaux, équipements et continuité de service réunis dans une offre claire.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+            </div>
+
+            <div class="product-grid tab-panel" data-tab-panel="entreprises">
+                <article class="product-card">
+                    <i data-lucide="building-2"></i>
+                    <h3>Assurance Multirisques Entreprises</h3>
+                    <p>Une couverture complète pour les sites, actifs et responsabilités.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="scale"></i>
+                    <h3>Responsabilité Civile Professionnelle</h3>
+                    <p>Protégez votre organisation face aux risques liés à votre métier.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="car-front"></i>
+                    <h3>Assurance Flotte Auto</h3>
+                    <p>Gestion souple des véhicules d'entreprise, des conducteurs et garanties.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="product-card">
+                    <i data-lucide="hard-hat"></i>
+                    <h3>Assurance Construction</h3>
+                    <p>Des solutions dédiées aux spécialistes construction et chantiers.</p>
+                    <a href="#">En savoir plus <span aria-hidden="true">→</span></a>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="bg-bnaWarm py-20 lg:py-28">
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="max-w-3xl">
+            <span class="eyebrow-pill bg-bnaBlue/10 text-bnaBlue">Pourquoi BNA</span>
+            <h2 class="section-title mt-5 text-bnaNavy">Pourquoi choisir BNA Assurances ?</h2>
+        </div>
+        <div class="mt-12 grid gap-5 md:grid-cols-2">
+            <article class="feature-block">
+                <i data-lucide="map-pinned"></i>
+                <h3>Réseau de proximité</h3>
+                <p>125 agences partout en Tunisie pour rester proche de vous, de vos familles et de vos activités.</p>
+            </article>
+            <article class="feature-block">
+                <i data-lucide="badge-check"></i>
+                <h3>Expertise reconnue</h3>
+                <p>Plus de 30 ans d'expérience dans l'assurance avec des équipes engagées à chaque étape.</p>
+            </article>
+            <article class="feature-block">
+                <i data-lucide="sparkles"></i>
+                <h3>Innovation continue</h3>
+                <p>Des solutions digitales et des produits modernes pour simplifier les démarches du quotidien.</p>
+            </article>
+            <article class="feature-block">
+                <i data-lucide="landmark"></i>
+                <h3>Solidité financière</h3>
+                <p>Filiale de BNA Bank, BNA Assurances s'appuie sur un acteur de référence en Tunisie.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="services" class="relative isolate overflow-hidden bg-bnaNavy py-20 text-white lg:py-28">
+    <div class="hero-pattern opacity-40" aria-hidden="true"></div>
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+            <div class="max-w-3xl">
+                <span class="eyebrow-pill border-white/15 bg-white/10 text-white">Services en ligne</span>
+                <h2 class="section-title mt-5 text-white">Tout gérer en ligne, à tout moment</h2>
+            </div>
+            <a class="btn btn-outline-white" asp-controller="Home" asp-action="Contact">Nous contacter</a>
+        </div>
+        <div class="mt-12 grid gap-5 md:grid-cols-3">
+            <article class="service-card">
+                <i data-lucide="file-text"></i>
+                <h3>Demander un devis</h3>
+                <p>Obtenez une estimation en quelques minutes avec un parcours clair et guidé.</p>
+                <a class="btn btn-outline-white" asp-controller="Home" asp-action="Devis">Commencer</a>
+            </article>
+            <article class="service-card">
+                <i data-lucide="clipboard-list"></i>
+                <h3>Déclarer un sinistre</h3>
+                <p>Signalez facilement votre sinistre en ligne et préparez les pièces utiles.</p>
+                <a class="btn btn-outline-white" asp-controller="Home" asp-action="Sinistres">Déclarer</a>
+            </article>
+            <article class="service-card">
+                <i data-lucide="map-pin"></i>
+                <h3>Trouver une agence</h3>
+                <p>Localisez l'agence la plus proche de vous sur l'ensemble du territoire.</p>
+                <a class="btn btn-outline-white" asp-controller="Home" asp-action="NosAgences">Localiser</a>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="bg-white py-20 lg:py-28">
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div>
+                <span class="eyebrow-pill bg-bnaGreen/10 text-bnaDeepGreen">Actualités</span>
+                <h2 class="section-title mt-5 text-bnaNavy">Les dernières nouvelles</h2>
+            </div>
+            <a class="text-sm font-bold text-bnaDeepGreen transition hover:text-bnaGreen" asp-controller="Home" asp-action="Actualites">Toutes les actualités →</a>
+        </div>
+        <div class="mt-12 grid gap-5 md:grid-cols-3">
+            <article class="news-card">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="news-pill">Identité</span>
+                    <time>01/02/2025</time>
+                </div>
+                <h3>BNA Assurances : une nouvelle identité pour une nouvelle ère</h3>
+                <p>Une marque renouvelée qui affirme la proximité, la confiance et l'innovation.</p>
+                <a href="#">Lire l'article →</a>
+            </article>
+            <article class="news-card">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="news-pill">Gouvernance</span>
+                    <time>23/05/2025</time>
+                </div>
+                <h3>Nomination de M. Faker RAIS au poste de Directeur Général</h3>
+                <p>Une nouvelle étape pour accompagner le développement stratégique de l'entreprise.</p>
+                <a href="#">Lire l'article →</a>
+            </article>
+            <article class="news-card">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="news-pill">Finance</span>
+                    <time>2025</time>
+                </div>
+                <h3>BNA Assurances obtient l'accord de la BVMT pour le marché principal</h3>
+                <p>Une reconnaissance qui renforce la trajectoire et la visibilité de la compagnie.</p>
+                <a href="#">Lire l'article →</a>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="cta-band bg-gradient-to-r from-bnaDeepGreen to-bnaBlue py-20 text-white">
+    <div class="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 px-5 md:flex-row md:items-center lg:px-8">
+        <div class="max-w-3xl">
+            <h2 class="font-display text-4xl font-extrabold tracking-normal md:text-5xl">Prêt à protéger ce qui vous est cher ?</h2>
+            <p class="mt-4 max-w-2xl text-lg text-white/78">Construisez une couverture adaptée à votre situation avec les conseillers BNA Assurances.</p>
+        </div>
+        <a class="btn bg-white text-bnaDeepGreen hover:bg-bnaWarm" asp-controller="Home" asp-action="Devis">Obtenir mon devis gratuit</a>
+    </div>
+</section>

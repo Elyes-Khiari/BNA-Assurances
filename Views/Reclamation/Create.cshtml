@@ -1,0 +1,527 @@
+﻿@model AssuranceApp.Models.Reclamation
+
+@{
+    ViewData["Title"] = "Déclarer un sinistre";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/reclamation.css" asp-append-version="true" />
+}
+
+<div class="reclamation-page">
+    <div class="bg-blob-1"></div>
+    <div class="bg-blob-2"></div>
+
+    <div class="form-panel">
+        <div class="form-header">
+            <h1 class="form-title">Nouvelle Réclamation</h1>
+            <p class="form-subtitle">Déclarez votre sinistre rapidement grâce à notre assistant numérique.</p>
+        </div>
+
+        <div id="progressWrapper" class="progress-wrapper" style="display: none;">
+            <div class="progress-info">
+                <span id="stepIndicator">Étape 1 sur 5</span>
+                <span id="stepPercentage">20%</span>
+            </div>
+            <div class="progress-track">
+                <div id="progressFill" class="progress-fill" style="width: 20%;"></div>
+            </div>
+        </div>
+
+        <form id="reclamationForm" asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" id="SelectedType" name="Title" value="" />
+            <input type="hidden" name="Status" value="Brouillon" />
+            <textarea id="hiddenDescription" name="Description" class="hidden" style="display:none;"></textarea>
+
+            <!-- ÉTAPE 0: Choix du type de réclamation -->
+            <div class="form-step active" id="step-0">
+                <h2 class="section-title text-center justify-center border-none" style="margin-bottom: 0.5rem;">Sélectionnez la nature de l'incident</h2>
+                
+                <div class="type-grid">
+                    <div class="type-card" onclick="selectType('constat_amiable', this)">
+                        <div class="type-icon">
+                            <i data-lucide="car-front"></i>
+                        </div>
+                        <h3 class="type-title">Constat d'Accident</h3>
+                        <p class="text-sm text-slate-500">Remplir un constat amiable suite à un accident impliquant d'autres véhicules.</p>
+                    </div>
+
+                    <div class="type-card" onclick="selectType('bris_glace', this)">
+                        <div class="type-icon">
+                            <i data-lucide="scan-line"></i>
+                        </div>
+                        <h3 class="type-title">Bris de Glace</h3>
+                        <p class="text-sm text-slate-500">Pare-brise fissuré, vitres ou optiques endommagés.</p>
+                    </div>
+
+                    <div class="type-card" onclick="selectType('vol_incendie', this)">
+                        <div class="type-icon">
+                            <i data-lucide="flame"></i>
+                        </div>
+                        <h3 class="type-title">Vol ou Incendie</h3>
+                        <p class="text-sm text-slate-500">Déclaration de vol de véhicule, vandalisme ou incendie.</p>
+                    </div>
+                </div>
+
+                <div class="btn-container justify-end mt-8 border-none">
+                    <button type="button" class="btn-custom btn-primary-custom" id="btnStartForm" disabled onclick="nextStep()">
+                        Commencer la saisie <i data-lucide="arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 1: Informations Générales -->
+            <div class="form-step" id="step-1">
+                <h2 class="section-title"><i data-lucide="calendar-clock"></i> Circonstances Générales</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date de l'accident</label>
+                        <input type="date" class="form-control" id="accDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Heure</label>
+                        <input type="time" class="form-control" id="accTime" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Lieu (Localisation Précise)</label>
+                    <div class="location-widget" id="locationWidget">
+                        <p class="text-sm text-slate-500 mb-3" id="locationStatus">Partagez votre position pour un traitement plus rapide</p>
+                        <button type="button" class="location-btn" onclick="getLocation()">
+                            <i data-lucide="map-pin"></i> Obtenir ma position actuelle
+                        </button>
+                        <input type="text" class="form-control mt-3" id="accLieu" placeholder="Ou saisissez l'adresse manuellement">
+                        <div id="mapContainer">
+                            <div class="map-overlay"><span class="bg-white px-3 py-1 rounded-full text-sm font-bold text-bnaGreen shadow">Localisation GPS acquise</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Y a-t-il des blessés ?</label>
+                        <select class="form-control" id="accBlesses">
+                            <option value="non">Non</option>
+                            <option value="oui">Oui</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dégâts matériels autres qu'aux véhicules A et B ?</label>
+                        <select class="form-control" id="accDegatsAutres">
+                            <option value="non">Non</option>
+                            <option value="oui">Oui</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Témoins (Noms, adresses, tel)</label>
+                    <textarea class="form-control" rows="2" id="accTemoins" placeholder="S'il n'y a pas de témoins, écrire 'Néant'"></textarea>
+                </div>
+
+                <div class="btn-container">
+                    <button type="button" class="btn-custom btn-outline" onclick="prevStep()"><i data-lucide="arrow-left"></i> Retour</button>
+                    <button type="button" class="btn-custom btn-primary-custom" onclick="nextStep()">Continuer <i data-lucide="arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 2: Véhicule A -->
+            <div class="form-step" id="step-2">
+                <h2 class="section-title vehicle-a-header"><i data-lucide="car"></i> Véhicule A (Vous)</h2>
+                
+                <div class="vehicle-panel mb-4">
+                    <h3 class="font-bold mb-3 border-b pb-2">Assurance</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Société d'Assurances</label>
+                            <input type="text" class="form-control" value="BNA Assurances" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">N° de Police</label>
+                            <input type="text" class="form-control" id="vehAPolice" placeholder="Ex: 123456789">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vehicle-panel mb-4">
+                    <h3 class="font-bold mb-3 border-b pb-2">Identité du Véhicule</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Marque, Type</label>
+                            <input type="text" class="form-control" id="vehAMarque" placeholder="Ex: Peugeot 208">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">N° d'immatriculation</label>
+                            <input type="text" class="form-control" id="vehAImmat" placeholder="Ex: 123 TUN 4567">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vehicle-panel">
+                    <h3 class="font-bold mb-3 border-b pb-2">Conducteur au moment de l'accident</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nom & Prénom</label>
+                            <input type="text" class="form-control" id="vehANom">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Permis de conduire N°</label>
+                            <input type="text" class="form-control" id="vehAPermis">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dégâts apparents au véhicule A</label>
+                        <textarea class="form-control" rows="2" id="vehADegats"></textarea>
+                    </div>
+                </div>
+
+                <div class="btn-container">
+                    <button type="button" class="btn-custom btn-outline" onclick="prevStep()"><i data-lucide="arrow-left"></i> Retour</button>
+                    <button type="button" class="btn-custom btn-primary-custom" onclick="nextStep()">Véhicule B <i data-lucide="arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 3: Véhicule B -->
+            <div class="form-step" id="step-3">
+                <h2 class="section-title vehicle-b-header"><i data-lucide="car"></i> Véhicule B (Tiers)</h2>
+                
+                <div class="vehicle-panel mb-4">
+                    <h3 class="font-bold mb-3 border-b pb-2">Assurance</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Société d'Assurances</label>
+                            <input type="text" class="form-control" id="vehBAssurance">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">N° de Police</label>
+                            <input type="text" class="form-control" id="vehBPolice">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vehicle-panel mb-4">
+                    <h3 class="font-bold mb-3 border-b pb-2">Identité du Véhicule</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Marque, Type</label>
+                            <input type="text" class="form-control" id="vehBMarque">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">N° d'immatriculation</label>
+                            <input type="text" class="form-control" id="vehBImmat">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vehicle-panel">
+                    <h3 class="font-bold mb-3 border-b pb-2">Conducteur</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nom & Prénom</label>
+                            <input type="text" class="form-control" id="vehBNom">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Permis de conduire N°</label>
+                            <input type="text" class="form-control" id="vehBPermis">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dégâts apparents au véhicule B</label>
+                        <textarea class="form-control" rows="2" id="vehBDegats"></textarea>
+                    </div>
+                </div>
+
+                <div class="btn-container">
+                    <button type="button" class="btn-custom btn-outline" onclick="prevStep()"><i data-lucide="arrow-left"></i> Retour</button>
+                    <button type="button" class="btn-custom btn-primary-custom" onclick="nextStep()">Circonstances <i data-lucide="arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 4: Circonstances & Croquis -->
+            <div class="form-step" id="step-4">
+                <h2 class="section-title"><i data-lucide="pen-tool"></i> Circonstances et Croquis</h2>
+                
+                <div class="form-row">
+                    <!-- Circonstances A -->
+                    <div>
+                        <h3 class="font-bold mb-3 vehicle-a-header">Véhicule A : Cochez les cases utiles</h3>
+                        <div class="checkbox-grid text-sm">
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="1"> 1. En stationnement</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="2"> 2. Quittait un stationnement</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="3"> 4. Sortait d'un parking/lieu privé</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="4"> 8. Heurtait à l'arrière</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="5"> 10. Changeait de file</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="6"> 14. Reculait</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-a" value="7"> 15. Empiétait sur la voie inverse</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Circonstances B -->
+                    <div>
+                        <h3 class="font-bold mb-3 vehicle-b-header">Véhicule B : Cochez les cases utiles</h3>
+                        <div class="checkbox-grid text-sm">
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="1"> 1. En stationnement</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="2"> 2. Quittait un stationnement</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="3"> 4. Sortait d'un parking/lieu privé</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="4"> 8. Heurtait à l'arrière</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="5"> 10. Changeait de file</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="6"> 14. Reculait</label>
+                            <label class="checkbox-item"><input type="checkbox" class="circ-b" value="7"> 15. Empiétait sur la voie inverse</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="font-bold mb-3">Croquis de l'accident</h3>
+                    <p class="text-sm text-slate-500 mb-2">Dessinez le plan des voies, la position des véhicules (A et B) au moment du choc, les panneaux, etc.</p>
+                    <div class="drawing-container">
+                        <div class="drawing-tools">
+                            <button type="button" class="tool-btn active" id="btnPen" title="Stylo"><i data-lucide="pen"></i></button>
+                            <button type="button" class="tool-btn" id="btnEraser" title="Gomme"><i data-lucide="eraser"></i></button>
+                            <button type="button" class="tool-btn text-red-500" id="btnClear" title="Effacer tout"><i data-lucide="trash-2"></i></button>
+                        </div>
+                        <canvas id="croquisCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="form-group mt-6">
+                    <label class="form-label">Observations générales</label>
+                    <textarea class="form-control" rows="3" id="observations"></textarea>
+                </div>
+
+                <div class="btn-container">
+                    <button type="button" class="btn-custom btn-outline" onclick="prevStep()"><i data-lucide="arrow-left"></i> Retour</button>
+                    <button type="button" class="btn-custom btn-primary-custom" onclick="nextStep()">Validation <i data-lucide="arrow-right"></i></button>
+                </div>
+            </div>
+
+            <!-- ÉTAPE 5: Signatures -->
+            <div class="form-step" id="step-5">
+                <h2 class="section-title"><i data-lucide="check-circle"></i> Validation et Signatures</h2>
+                <p class="text-slate-600 mb-6">Le constat amiable doit être signé par les deux conducteurs pour être valide. Ne constitue pas une reconnaissance de responsabilité, mais un relevé des identités et des faits.</p>
+                
+                <div class="form-row">
+                    <div class="vehicle-panel">
+                        <h3 class="font-bold vehicle-a-header mb-2">Signature Conducteur A</h3>
+                        <canvas class="signature-pad w-full" id="sigA"></canvas>
+                        <button type="button" class="text-sm text-slate-500 mt-2 hover:text-bnaGreen" onclick="clearCanvas('sigA')">Effacer</button>
+                    </div>
+                    <div class="vehicle-panel">
+                        <h3 class="font-bold vehicle-b-header mb-2">Signature Conducteur B</h3>
+                        <canvas class="signature-pad w-full" id="sigB"></canvas>
+                        <button type="button" class="text-sm text-slate-500 mt-2 hover:text-bnaGreen" onclick="clearCanvas('sigB')">Effacer</button>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mt-6 text-sm flex gap-3">
+                    <i data-lucide="info" class="shrink-0 mt-0.5"></i>
+                    <p>En soumettant ce formulaire, les informations, le croquis et les signatures seront générés au format PDF officiel et envoyés à votre compagnie d'assurance BNA Assurances.</p>
+                </div>
+
+                <div class="btn-container">
+                    <button type="button" class="btn-custom btn-outline" onclick="prevStep()"><i data-lucide="arrow-left"></i> Retour</button>
+                    <button type="button" class="btn-custom btn-primary-custom" onclick="submitForm()">Soumettre le Constat <i data-lucide="send"></i></button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Multistep Logic
+        let currentStep = 0;
+        const totalSteps = 5;
+
+        function selectType(type, element) {
+            document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('SelectedType').value = type;
+            
+            const btn = document.getElementById('btnStartForm');
+            btn.disabled = false;
+            btn.classList.add('animate-bounce');
+            setTimeout(() => btn.classList.remove('animate-bounce'), 1000);
+        }
+
+        function updateProgress() {
+            if(currentStep === 0) {
+                document.getElementById('progressWrapper').style.display = 'none';
+                return;
+            }
+            document.getElementById('progressWrapper').style.display = 'block';
+            
+            const percentage = ((currentStep) / totalSteps) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('stepIndicator').innerText = `Étape ${currentStep} sur ${totalSteps}`;
+            document.getElementById('stepPercentage').innerText = Math.round(percentage) + '%';
+        }
+
+        function nextStep() {
+            if(currentStep === 0 && !document.getElementById('SelectedType').value) return;
+
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            setTimeout(() => {
+                document.getElementById(`step-${currentStep}`).classList.add('hidden');
+                currentStep++;
+                const nextEl = document.getElementById(`step-${currentStep}`);
+                nextEl.classList.remove('hidden');
+                // Small delay to allow display:block to apply before adding active class for animation
+                setTimeout(() => nextEl.classList.add('active'), 50);
+                updateProgress();
+                
+                // Initialize canvas sizes when they become visible
+                if(currentStep === 4) initCanvas('croquisCanvas');
+                if(currentStep === 5) {
+                    initCanvas('sigA');
+                    initCanvas('sigB');
+                }
+            }, 300); // Wait for transition
+        }
+
+        function prevStep() {
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            setTimeout(() => {
+                document.getElementById(`step-${currentStep}`).classList.add('hidden');
+                currentStep--;
+                const prevEl = document.getElementById(`step-${currentStep}`);
+                prevEl.classList.remove('hidden');
+                setTimeout(() => prevEl.classList.add('active'), 50);
+                updateProgress();
+            }, 300);
+        }
+
+        // Geolocation Logic
+        function getLocation() {
+            const status = document.getElementById('locationStatus');
+            const widget = document.getElementById('locationWidget');
+            const map = document.getElementById('mapContainer');
+            const input = document.getElementById('accLieu');
+
+            status.innerHTML = "Recherche de la position en cours...";
+            
+            if (!navigator.geolocation) {
+                status.innerHTML = "La géolocalisation n'est pas supportée par votre navigateur.";
+            } else {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        status.innerHTML = "Position trouvée avec succès.";
+                        widget.classList.add('success');
+                        input.value = `Coordonnées GPS: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+                        map.classList.add('show');
+                        
+                        // In a real app, use reverse geocoding API here to get actual address
+                        // fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                        //    .then(res => res.json()).then(data => input.value = data.display_name);
+                    },
+                    () => {
+                        status.innerHTML = "Impossible de récupérer votre position. Veuillez la saisir manuellement.";
+                    }
+                );
+            }
+        }
+
+        // Drawing / Canvas Logic
+        const canvases = {};
+        
+        function initCanvas(id) {
+            const canvas = document.getElementById(id);
+            if(!canvas || canvases[id]) return; // already initialized
+            
+            // Match internal resolution to CSS size
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width - 4; // account for borders
+            if(id === 'croquisCanvas') canvas.height = 400;
+            else canvas.height = 150;
+
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#0f172a'; // slate-900
+
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            function draw(e) {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                [lastX, lastY] = [x, y];
+            }
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                [lastX, lastY] = [e.clientX - rect.left, e.clientY - rect.top];
+            });
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', () => isDrawing = false);
+            canvas.addEventListener('mouseout', () => isDrawing = false);
+            
+            // Touch support
+            canvas.addEventListener('touchstart', (e) => {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                [lastX, lastY] = [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+                e.preventDefault();
+            });
+            canvas.addEventListener('touchmove', (e) => { draw(e); e.preventDefault(); });
+            canvas.addEventListener('touchend', () => isDrawing = false);
+
+            canvases[id] = ctx;
+        }
+
+        function clearCanvas(id) {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Croquis Tools
+        document.getElementById('btnPen')?.addEventListener('click', function() {
+            canvases['croquisCanvas'].strokeStyle = '#0f172a';
+            canvases['croquisCanvas'].lineWidth = 3;
+            this.classList.add('active');
+            document.getElementById('btnEraser').classList.remove('active');
+        });
+        
+        document.getElementById('btnEraser')?.addEventListener('click', function() {
+            canvases['croquisCanvas'].strokeStyle = '#ffffff'; // draw white to erase
+            canvases['croquisCanvas'].lineWidth = 20;
+            this.classList.add('active');
+            document.getElementById('btnPen').classList.remove('active');
+        });
+        
+        document.getElementById('btnClear')?.addEventListener('click', function() {
+            clearCanvas('croquisCanvas');
+        });
+
+        function submitForm() {
+            // Build a JSON summary to store in Description for the backend mock
+            const summary = {
+                type: document.getElementById('SelectedType').value,
+                date: document.getElementById('accDate').value,
+                lieu: document.getElementById('accLieu').value,
+                vehiculeAMarque: document.getElementById('vehAMarque').value,
+                vehiculeBMarque: document.getElementById('vehBMarque').value
+            };
+            
+            document.getElementById('hiddenDescription').value = JSON.stringify(summary, null, 2);
+            document.getElementById('reclamationForm').submit();
+        }
+    </script>
+}

@@ -1,0 +1,11 @@
+Utilisation des paramètres de lancement à partir de C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\Properties\launchSettings.json...
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5210
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.

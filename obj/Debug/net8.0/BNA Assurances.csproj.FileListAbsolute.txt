@@ -1,0 +1,35 @@
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\appsettings.Development.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\appsettings.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.staticwebassets.endpoints.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.exe
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.deps.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.runtimeconfig.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\AssuranceApp.pdb
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\Microsoft.EntityFrameworkCore.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\bin\Debug\net8.0\Microsoft.EntityFrameworkCore.InMemory.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.csproj.AssemblyReference.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.AssemblyInfoInputs.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.AssemblyInfo.cs
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.csproj.CoreCompileInputs.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\AssuranceApp.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.RazorAssemblyInfo.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.RazorAssemblyInfo.cs
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\rjimswa.dswa.cache.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\scopedcss\bundle\AssuranceApp.styles.css
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\staticwebassets.build.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\staticwebassets.build.json.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\staticwebassets.development.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\staticwebassets.build.endpoints.json
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\swae.build.ex.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assu.BC2CD5B2.Up2Date
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\AssuranceApp.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\refint\AssuranceApp.dll
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\AssuranceApp.pdb
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\BNA Assurances.genruntimeconfig.cache
+C:\Users\khiar_m8gweki\Desktop\BNA Assurances\BNA Assurances\obj\Debug\net8.0\ref\AssuranceApp.dll
