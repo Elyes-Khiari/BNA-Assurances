@@ -50,4 +50,11 @@ public class HomeController : Controller
     {
         return View();
     }
+
+    [Route("/assistant")]
+    public IActionResult Assistant(string q)
+    {
+        ViewBag.Query = q;
+        return View();
+    }
 }
