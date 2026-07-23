@@ -1,180 +1,420 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text;
 using System.Net.Http.Headers;
-
-namespace AssuranceApp.Controllers;
+using System.Text;
 
 [ApiController]
 [Route("api/chat")]
 public class ChatController : ControllerBase
 {
-    private readonly IConfiguration _configuration;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClient _http;
+    private readonly IConfiguration _config;
 
-    public ChatController(IConfiguration configuration, HttpClient httpClient)
+    public ChatController(IHttpClientFactory httpClientFactory, IConfiguration config)
     {
-        _configuration = configuration;
-        _httpClient = httpClient;
+        _http = httpClientFactory.CreateClient();
+        _config = config;
     }
 
+    // =========================
+    // MODELS
+    // =========================
     public class ChatRequest
     {
-        public string message { get; set; } = string.Empty;
+        public string Message { get; set; } = "";
+        public string SessionId { get; set; } = "";
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Post([FromBody] ChatRequest request)
+    // =========================
+    // CONVERSATION
+    // =========================
+    private async Task<Guid> GetOrCreateConversation(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(request.message))
-            return BadRequest(new { reply = "Le message est vide." });
+        if (string.IsNullOrWhiteSpace(sessionId))
+            sessionId = Guid.NewGuid().ToString();
 
-        try
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{supabaseUrl}/rest/v1/conversations?session_id=eq.{sessionId}&select=id"
+        );
+
+        request.Headers.Add("apikey", supabaseKey);
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", supabaseKey);
+
+        var response = await _http.SendAsync(request);
+        var json = await response.Content.ReadAsStringAsync();
+
+        using var doc = JsonDocument.Parse(json);
+
+        if (doc.RootElement.GetArrayLength() > 0)
         {
-            // 1. Get embedding for the user message
-            var embedUrl = _configuration["EmbeddingService:Url"] + "/embed";
-            var embedPayload = new { text = request.message };
-            var embedResponse = await _httpClient.PostAsJsonAsync(embedUrl, embedPayload);
-            
-            if (!embedResponse.IsSuccessStatusCode)
+            return Guid.Parse(doc.RootElement[0].GetProperty("id").GetString()!);
+        }
+
+        var create = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{supabaseUrl}/rest/v1/conversations"
+        );
+
+        create.Headers.Add("apikey", supabaseKey);
+        create.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", supabaseKey);
+        create.Headers.Add("Prefer", "return=representation");
+
+        create.Content = JsonContent.Create(new
+        {
+            session_id = sessionId
+        });
+
+        var createRes = await _http.SendAsync(create);
+        var createdJson = await createRes.Content.ReadAsStringAsync();
+
+        using var createdDoc = JsonDocument.Parse(createdJson);
+
+        return Guid.Parse(createdDoc.RootElement[0].GetProperty("id").GetString()!);
+    }
+
+    // =========================
+    // SAVE MESSAGE
+    // =========================
+    private async Task SaveMessage(Guid conversationId, string role, string content)
+    {
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{supabaseUrl}/rest/v1/messages"
+        );
+
+        request.Headers.Add("apikey", supabaseKey);
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", supabaseKey);
+        request.Headers.Add("Prefer", "return=representation");
+
+        request.Content = JsonContent.Create(new
+        {
+            conversation_id = conversationId,
+            role = role,
+            content = content
+        });
+
+        await _http.SendAsync(request);
+    }
+
+    // =========================
+    // STREAM ENDPOINT
+    // =========================
+    [HttpPost("stream")]
+    public async Task Stream([FromBody] ChatRequest request)
+    {
+        Response.ContentType = "text/plain; charset=utf-8";
+        Response.Headers.CacheControl = "no-cache";
+
+        if (string.IsNullOrWhiteSpace(request.Message))
+        {
+            Response.StatusCode = StatusCodes.Status400BadRequest;
+            await Response.WriteAsync("Message is required.");
+            return;
+        }
+
+        var sessionId = request.SessionId;
+        string? numeroPermis = null;
+
+        if (User.Identity is { IsAuthenticated: true })
+        {
+            numeroPermis = User.FindFirst("NumeroPermis")?.Value;
+            if (!string.IsNullOrEmpty(numeroPermis))
             {
-                return StatusCode(500, new { reply = "Erreur de connexion au service d'embedding." });
+                sessionId = $"client_{numeroPermis}";
             }
-            
-            var embedResult = await embedResponse.Content.ReadFromJsonAsync<EmbeddingResponse>();
-            var embedding = embedResult?.embedding;
+        }
 
-            if (embedding == null)
-            {
-                return StatusCode(500, new { reply = "Échec de génération de l'embedding." });
-            }
+        var conversationId = await GetOrCreateConversation(sessionId);
 
-            // 2. Query Supabase for similar documents
-            var supabaseUrl = _configuration["Supabase:Url"];
-            var supabaseKey = _configuration["Supabase:ServiceKey"];
+        // 1. Save user message
+        await SaveMessage(conversationId, "user", request.Message);
 
-            using var supabaseRequest = new HttpRequestMessage(HttpMethod.Post, $"{supabaseUrl}/rest/v1/rpc/match_documents");
-            supabaseRequest.Headers.Add("apikey", supabaseKey);
-            supabaseRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
-            
-            var rpcPayload = new
-            {
-                query_embedding = embedding,
-                match_count = 5
-            };
-            
-            supabaseRequest.Content = new StringContent(JsonSerializer.Serialize(rpcPayload), Encoding.UTF8, "application/json");
-            
-            Console.WriteLine($"[DEBUG] Calling Supabase RPC: {supabaseUrl}/rest/v1/rpc/match_documents");
-            Console.WriteLine($"[DEBUG] Embedding length: {embedding.Count}");
-            
-            var supabaseResponse = await _httpClient.SendAsync(supabaseRequest);
-            
-            var supabaseBody = await supabaseResponse.Content.ReadAsStringAsync();
-            Console.WriteLine($"[DEBUG] Supabase Status: {supabaseResponse.StatusCode}");
-            Console.WriteLine($"[DEBUG] Supabase Response: {supabaseBody}");
-            
-            if (!supabaseResponse.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"Supabase Error: {supabaseBody}");
-            }
+        // =========================
+        // EMBEDDING
+        // =========================
+        var embedRes = await _http.PostAsJsonAsync(
+            "http://127.0.0.1:8000/embed",
+            new { text = request.Message }
+        );
 
-            var documents = supabaseResponse.IsSuccessStatusCode 
-                ? JsonSerializer.Deserialize<List<DocumentMatch>>(supabaseBody)
-                : new List<DocumentMatch>();
+        if (!embedRes.IsSuccessStatusCode)
+        {
+            Response.StatusCode = StatusCodes.Status502BadGateway;
+            await Response.WriteAsync("Embedding service failed.");
+            return;
+        }
+
+        var embedData = await embedRes.Content.ReadFromJsonAsync<EmbeddingResponse>();
+
+        if (embedData?.Embedding == null || embedData.Embedding.Length == 0)
+        {
+            Response.StatusCode = StatusCodes.Status502BadGateway;
+            await Response.WriteAsync("Embedding service returned an empty embedding.");
+            return;
+        }
+
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+
+        // =========================
+        // RAG
+        // =========================
+        var ragReq = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{supabaseUrl}/rest/v1/rpc/match_documents"
+        );
+
+        ragReq.Headers.Add("apikey", supabaseKey);
+        ragReq.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", supabaseKey);
+
+        ragReq.Content = JsonContent.Create(new
+        {
+            query_embedding = embedData.Embedding,
+            match_count = 5
+        });
+
+        var ragRes = await _http.SendAsync(ragReq);
+        var ragJson = await ragRes.Content.ReadAsStringAsync();
+
+        if (!ragRes.IsSuccessStatusCode)
+        {
+            Response.StatusCode = StatusCodes.Status502BadGateway;
+            await Response.WriteAsync("Document search failed.");
+            return;
+        }
+
+        var matches = JsonSerializer.Deserialize<List<SupabaseMatch>>(ragJson) ?? new();
+        var context = string.Join("\n", matches.Select(m => m.content));
+
+        // =========================
+        // CLIENT CONTEXT (If Logged In)
+        // =========================
+        string clientContext = "";
+        if (!string.IsNullOrEmpty(numeroPermis))
+        {
+            var clientReq = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/rest/v1/ClientRecords?NumeroPermis=eq.{numeroPermis}&select=*");
+            clientReq.Headers.Add("apikey", supabaseKey);
+            clientReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
             
-            Console.WriteLine($"[DEBUG] Documents found: {documents?.Count ?? 0}");
-            
-            // Build context from documents
-            var contextBuilder = new StringBuilder();
-            if (documents != null && documents.Count > 0)
+            var clientRes = await _http.SendAsync(clientReq);
+            if (clientRes.IsSuccessStatusCode)
             {
-                foreach (var doc in documents)
+                var clientJson = await clientRes.Content.ReadAsStringAsync();
+                using var cDoc = JsonDocument.Parse(clientJson);
+                if (cDoc.RootElement.GetArrayLength() > 0)
                 {
-                    contextBuilder.AppendLine($"Document (Source: {doc.source}, Page: {doc.page_number}):");
-                    contextBuilder.AppendLine(doc.content);
-                    contextBuilder.AppendLine();
+                    var record = cDoc.RootElement[0];
+                    clientContext = "INFORMATIONS DU CLIENT CONNECTÉ:\n";
+                    foreach (var prop in record.EnumerateObject())
+                    {
+                        var val = prop.Value.ValueKind == System.Text.Json.JsonValueKind.Null ? "" : prop.Value.ToString();
+                        clientContext += $"- {prop.Name}: {val}\n";
+                    }
+                    clientContext += "Utilise ces informations pour répondre de manière personnalisée si la question concerne ses contrats ou garanties.\n\n";
+                }
+            }
+        }
+
+        var prompt = BuildPrompt(request.Message, context, clientContext);
+
+        // =========================
+        // GROQ STREAM
+        // =========================
+        var groqKey = _config["Groq:ApiKey"];
+
+        var groqRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://api.groq.com/openai/v1/chat/completions"
+        );
+
+        groqRequest.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", groqKey);
+
+        groqRequest.Content = JsonContent.Create(new
+        {
+            model = "llama-3.3-70b-versatile",
+            stream = true,
+            messages = new[]
+            {
+                new { role = "system", content = "You are a helpful insurance assistant." },
+                new { role = "user", content = prompt }
+            },
+            temperature = 0.2
+        });
+
+        var response = await _http.SendAsync(
+            groqRequest,
+            HttpCompletionOption.ResponseHeadersRead
+        );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var openRouterKey = _config["OpenRouter:ApiKey"];
+            if (!string.IsNullOrEmpty(openRouterKey))
+            {
+                var openRouterRequest = new HttpRequestMessage(HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
+                openRouterRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", openRouterKey);
+                openRouterRequest.Content = JsonContent.Create(new
+                {
+                    model = "meta-llama/llama-3.3-70b-instruct",
+                    stream = true,
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You are a helpful insurance assistant." },
+                        new { role = "user", content = prompt }
+                    },
+                    temperature = 0.2
+                });
+
+                response = await _http.SendAsync(openRouterRequest, HttpCompletionOption.ResponseHeadersRead);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Response.StatusCode = StatusCodes.Status502BadGateway;
+                    await Response.WriteAsync($"OpenRouter fallback failed: {error}");
+                    return;
                 }
             }
             else
             {
-                contextBuilder.AppendLine("Aucune information pertinente n'a été trouvée dans la base de données.");
+                var error = await response.Content.ReadAsStringAsync();
+                Response.StatusCode = StatusCodes.Status502BadGateway;
+                await Response.WriteAsync($"Groq request failed: {error}");
+                return;
             }
-
-            // 3. Call Groq API
-            var groqApiKey = _configuration["Groq:ApiKey"];
-            if (string.IsNullOrWhiteSpace(groqApiKey))
-            {
-                return StatusCode(500, new { reply = "La clé API Groq n'est pas configurée. Veuillez l'ajouter dans appsettings.json." });
-            }
-
-            var groqUrl = "https://api.groq.com/openai/v1/chat/completions";
-
-            var systemPrompt = @"Vous êtes l'assistant virtuel de BNA Assurances. 
-Répondez aux questions des utilisateurs en vous basant UNIQUEMENT sur le contexte fourni. 
-Si la réponse ne se trouve pas dans le contexte, dites poliment que vous ne possédez pas cette information et invitez l'utilisateur à contacter une agence BNA. 
-Répondez de manière professionnelle, concise et en français.";
-
-            var groqPayload = new
-            {
-                model = "llama-3.1-8b-instant",
-                messages = new[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = $"Contexte:\n{contextBuilder.ToString()}\n\nQuestion: {request.message}" }
-                },
-                temperature = 0.3
-            };
-
-            using var groqRequest = new HttpRequestMessage(HttpMethod.Post, groqUrl);
-            groqRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", groqApiKey);
-            groqRequest.Content = new StringContent(JsonSerializer.Serialize(groqPayload), Encoding.UTF8, "application/json");
-
-            var groqResponse = await _httpClient.SendAsync(groqRequest);
-            
-            if (!groqResponse.IsSuccessStatusCode)
-            {
-                var groqErr = await groqResponse.Content.ReadAsStringAsync();
-                Console.WriteLine($"Groq API Error: {groqErr}");
-                return StatusCode(500, new { reply = "Erreur de communication avec le modèle de langage. Veuillez réessayer ultérieurement." });
-            }
-
-            var groqResult = await groqResponse.Content.ReadFromJsonAsync<GroqResponse>();
-            var aiReply = groqResult?.choices?.FirstOrDefault()?.message?.content ?? "Désolé, je n'ai pas pu générer une réponse.";
-
-            return Ok(new { reply = aiReply });
         }
-        catch (Exception ex)
+
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
+
+        var fullResponse = new StringBuilder();
+
+        while (!reader.EndOfStream)
         {
-            Console.WriteLine($"Chat API Error: {ex}");
-            return StatusCode(500, new { reply = $"Erreur interne du serveur. Détails : {ex.Message} \n {ex.StackTrace}" });
+            var line = await reader.ReadLineAsync();
+
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (!line.StartsWith("data: "))
+                continue;
+
+            var data = line.Substring(6);
+
+            if (data == "[DONE]")
+                break;
+
+            try
+            {
+                using var json = JsonDocument.Parse(data);
+
+                var delta = json.RootElement
+                    .GetProperty("choices")[0]
+                    .GetProperty("delta");
+
+                if (!delta.TryGetProperty("content", out var contentElement))
+                    continue;
+
+                var token = contentElement.GetString();
+
+                if (!string.IsNullOrEmpty(token))
+                {
+                    fullResponse.Append(token);
+
+                    await Response.WriteAsync(token);
+                    await Response.Body.FlushAsync();
+                }
+            }
+            catch { }
         }
+
+        // 2. Save assistant message
+        await SaveMessage(conversationId, "assistant", fullResponse.ToString());
     }
 
-    public class EmbeddingResponse
+    // =========================
+    // HISTORY ENDPOINT
+    // =========================
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistory([FromQuery] string? sessionId)
     {
-        public List<float> embedding { get; set; } = new();
+        if (User.Identity is { IsAuthenticated: true })
+        {
+            var np = User.FindFirst("NumeroPermis")?.Value;
+            if (!string.IsNullOrEmpty(np))
+            {
+                sessionId = $"client_{np}";
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return Ok(new List<object>()); // Empty history
+        }
+
+        var conversationId = await GetOrCreateConversation(sessionId);
+
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{supabaseUrl}/rest/v1/messages?conversation_id=eq.{conversationId}&order=created_at.asc&select=role,content"
+        );
+        request.Headers.Add("apikey", supabaseKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
+
+        var response = await _http.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+            return StatusCode(502, "Failed to load history");
+
+        var json = await response.Content.ReadAsStringAsync();
+        return Content(json, "application/json");
     }
 
-    public class DocumentMatch
+    // =========================
+    // PROMPT
+    // =========================
+    private string BuildPrompt(string message, string context, string clientContext)
     {
-        public string content { get; set; } = string.Empty;
-        public int page_number { get; set; }
-        public string source { get; set; } = string.Empty;
-    }
+        return $@"
+CONTEXT:
+{context}
 
-    public class GroqResponse
-    {
-        public List<GroqChoice> choices { get; set; } = new();
-    }
+{clientContext}
 
-    public class GroqChoice
-    {
-        public GroqMessage message { get; set; } = new();
-    }
+QUESTION:
+{message}
 
-    public class GroqMessage
-    {
-        public string content { get; set; } = string.Empty;
+Answer clearly and concisely using only the context provided. 
+If the user asks about their personal info or contract, use the 'INFORMATIONS DU CLIENT CONNECTÉ' block.
+If missing info, say you don't know. Reply in French.
+";
     }
+}
+
+// =========================
+// DTOs
+// =========================
+public class EmbeddingResponse
+{
+    public float[] Embedding { get; set; } = Array.Empty<float>();
+}
+
+public class SupabaseMatch
+{
+    public string content { get; set; } = "";
 }

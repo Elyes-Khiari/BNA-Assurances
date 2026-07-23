@@ -30,8 +30,8 @@
 
         <form id="reclamationForm" asp-action="Create" method="post">
             @Html.AntiForgeryToken()
-            <input type="hidden" id="SelectedType" name="Title" value="" />
-            <input type="hidden" name="Status" value="Brouillon" />
+            <input type="hidden" id="SelectedType" name="Objet" value="" />
+            <input type="hidden" name="Statut" value="Ouverte" />
             <textarea id="hiddenDescription" name="Description" class="hidden" style="display:none;"></textarea>
 
             <!-- ÉTAPE 0: Choix du type de réclamation -->

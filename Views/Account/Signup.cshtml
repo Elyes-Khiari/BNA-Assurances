@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "S'inscrire";
+}
+
+<div class="flex min-h-[80vh] items-center justify-center bg-bnaWarm px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-lg space-y-8 rounded-2xl bg-white p-10 shadow-xl border border-slate-100">
+        <div>
+            <h2 class="mt-2 text-center text-3xl font-bold tracking-tight text-bnaNavy font-display">
+                Créer un compte
+            </h2>
+            <p class="mt-3 text-center text-sm text-slate-500">
+                Rejoignez-nous pour gérer vos contrats en ligne
+            </p>
+        </div>
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="rounded-md bg-red-50 p-4 border border-red-200">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Attention</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>@ViewBag.Error</p>
+                        </div>
+                        @if (ViewBag.Error.Contains("Veuillez contacter un agent"))
+                        {
+                            <div class="mt-4">
+                                <a href="tel:+21631350000" class="text-sm font-medium text-red-800 hover:text-red-900 underline">
+                                    Appeler le +216 31 350 000
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <form class="mt-8 space-y-6" asp-action="Signup" method="post">
+            <div class="space-y-4">
+                <div>
+                    <label for="fullName" class="block text-sm font-medium text-slate-700 mb-1">Nom Complet</label>
+                    <input id="fullName" name="fullName" type="text" required
+                           class="relative block w-full rounded-lg border-0 py-2.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-bnaGreen sm:text-sm sm:leading-6 px-3"
+                           placeholder="Foulen Ben Foulen">
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Adresse e-mail</label>
+                    <input id="email" name="email" type="email" autocomplete="email" required
+                           class="relative block w-full rounded-lg border-0 py-2.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-bnaGreen sm:text-sm sm:leading-6 px-3"
+                           placeholder="vous@exemple.com">
+                </div>
+
+                <div>
+                    <label for="numeroPermis" class="block text-sm font-medium text-slate-700 mb-1">Numéro de Permis</label>
+                    <p class="text-xs text-slate-500 mb-2">Utilisé pour vérifier que vous êtes bien client chez BNA Assurances.</p>
+                    <input id="numeroPermis" name="numeroPermis" type="text" required
+                           class="relative block w-full rounded-lg border-0 py-2.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-bnaGreen sm:text-sm sm:leading-6 px-3"
+                           placeholder="ex: 12/345678">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
+                    <input id="password" name="password" type="password" autocomplete="new-password" required
+                           class="relative block w-full rounded-lg border-0 py-2.5 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-bnaGreen sm:text-sm sm:leading-6 px-3"
+                           placeholder="••••••••">
+                </div>
+            </div>
+
+            <div>
+                <button type="submit"
+                        class="group relative flex w-full justify-center rounded-lg bg-bnaGreen px-3 py-3 text-sm font-semibold text-white hover:bg-bnaDeepGreen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnaGreen transition shadow-md">
+                    Créer mon compte
+                </button>
+            </div>
+        </form>
+
+        <p class="mt-8 text-center text-sm text-slate-500">
+            Vous avez déjà un compte ?
+            <a asp-controller="Account" asp-action="Login" class="font-semibold leading-6 text-bnaGreen hover:text-bnaDeepGreen transition">Connectez-vous</a>
+        </p>
+    </div>
+</div>

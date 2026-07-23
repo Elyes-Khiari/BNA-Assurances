@@ -14,8 +14,8 @@
         <table class="table table-striped align-middle">
             <thead>
                 <tr>
-                    <th>Title</th>
-                    <th>Status</th>
+                    <th>Objet</th>
+                    <th>Statut</th>
                     <th>Created At</th>
                     <th></th>
                 </tr>
@@ -24,11 +24,11 @@
                 @foreach (var item in Model)
                 {
                     <tr>
-                        <td>@item.Title</td>
-                        <td>@item.Status</td>
+                        <td>@item.Objet</td>
+                        <td>@item.Statut</td>
                         <td>@item.CreatedAt.ToString("u")</td>
                         <td>
-                            <a asp-action="Details" asp-route-id="@item.Id">Details</a>
+                            <a asp-action="Details" asp-route-id="@item.IdReclamation">Details</a>
                         </td>
                     </tr>
                 }

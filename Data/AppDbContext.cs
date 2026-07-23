@@ -13,4 +13,6 @@ public class AppDbContext : DbContext
     public DbSet<Reclamation> Reclamations => Set<Reclamation>();
 
     public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
+
+    public DbSet<ClientRecord> ClientRecords => Set<ClientRecord>();
 }

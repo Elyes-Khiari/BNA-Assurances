@@ -5,9 +5,10 @@
 
 <section class="bg-bnaWarm py-20 lg:min-h-[80vh]">
     <div class="mx-auto max-w-4xl px-5 lg:px-8">
+
         <div class="rounded-3xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden flex flex-col h-[600px]">
-            
-            <!-- Header -->
+
+            <!-- HEADER -->
             <div class="bg-bnaNavy px-6 py-4 flex items-center justify-between text-white">
                 <div class="flex items-center gap-3">
                     <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
@@ -18,61 +19,61 @@
                         <p class="text-xs text-white/70">Toujours là pour vous aider</p>
                     </div>
                 </div>
+
                 <a asp-controller="Home" asp-action="Index" class="text-white/70 hover:text-white transition">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </a>
             </div>
 
-            <!-- Chat Area -->
+            <!-- CHAT AREA -->
             <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50" id="chatArea">
-                
-                <!-- Welcome Message -->
+
+                <!-- WELCOME -->
                 <div class="flex gap-4 mb-6">
                     <div class="flex-shrink-0">
                         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bnaNavy text-white">
                             <i data-lucide="bot" class="h-5 w-5"></i>
                         </div>
                     </div>
+
                     <div class="flex flex-col gap-1 max-w-[80%]">
                         <span class="text-xs font-semibold text-gray-500">Assistant BNA</span>
-                        <div class="rounded-2xl rounded-tl-none bg-white p-4 shadow-sm ring-1 ring-black/5 text-gray-700">
-                            Bonjour ! Je suis votre assistant virtuel BNA Assurances. Comment puis-je vous accompagner aujourd'hui ?
+                        <div class="rounded-2xl rounded-tl-none bg-white p-4 shadow-sm text-gray-700">
+                            Bonjour ! Comment puis-je vous aider ?
                         </div>
                     </div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(query))
-                {
-                    <div class="flex gap-4 mb-6 flex-row-reverse">
-                        <div class="flex-shrink-0">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bnaGreen text-white">
-                                <i data-lucide="user" class="h-5 w-5"></i>
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-1 max-w-[80%] items-end">
-                            <span class="text-xs font-semibold text-gray-500">Vous</span>
-                            <div class="rounded-2xl rounded-tr-none bg-bnaNavy p-4 text-white shadow-sm">
-                                @query
-                            </div>
-                        </div>
-                    </div>
-                }
             </div>
 
-            <!-- Input Area -->
+            <!-- INPUT -->
             <div class="border-t border-gray-100 bg-white p-4">
-                <form id="chatForm" class="relative flex items-center">
-                    <input type="text" id="chatInput"
-                           class="w-full rounded-full border border-gray-200 bg-gray-50 py-3 pl-6 pr-14 text-bnaNavy placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-bnaGreen/50 transition-all"
-                           placeholder="Écrivez un message..."
-                           autocomplete="off">
-
-                    <button type="submit"
-                            class="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full bg-bnaGreen text-white transition hover:bg-bnaDeepGreen focus:outline-none">
-                        <i data-lucide="send" class="h-4 w-4 ml-1"></i>
+                <form id="chatForm" class="relative flex items-center gap-2">
+                    
+                    <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf" />
+                    <button type="button" id="btnUpload" class="flex flex-shrink-0 h-10 w-10 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-bnaNavy transition" title="Joindre un fichier">
+                        <i data-lucide="paperclip" class="h-5 w-5"></i>
                     </button>
+
+                    <button type="button" id="btnMic" class="flex flex-shrink-0 h-10 w-10 items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition" title="Maintenir pour parler">
+                        <i data-lucide="mic" class="h-5 w-5"></i>
+                    </button>
+
+                    <div class="relative flex-1">
+                        <input type="text" id="chatInput"
+                               class="w-full rounded-full border border-gray-200 bg-gray-50 py-3 pl-4 pr-12 text-bnaNavy focus:outline-none focus:ring-2 focus:ring-bnaGreen/50"
+                               placeholder="Écrivez un message..."
+                               autocomplete="off">
+                        
+                        <button type="submit"
+                                class="absolute right-1 top-1 bottom-1 flex h-10 w-10 items-center justify-center rounded-full bg-bnaGreen text-white hover:bg-bnaDeepGreen">
+                            <i data-lucide="send" class="h-4 w-4 ml-1"></i>
+                        </button>
+                    </div>
                 </form>
+
             </div>
+
         </div>
     </div>
 </section>
@@ -84,16 +85,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const chatArea = document.getElementById('chatArea');
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
+    const fileInput = document.getElementById('fileInput');
+    const btnUpload = document.getElementById('btnUpload');
+    const btnMic = document.getElementById('btnMic');
 
-    chatForm.addEventListener('submit', async function (e) {
-        e.preventDefault();
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
 
-        const text = chatInput.value.trim();
-        if (!text) return;
+    // TTS Function (Désactivé)
+    function speakText(text) {
+        // La synthèse vocale a été désactivée à la demande de l'utilisateur.
+    }
 
-        // USER MESSAGE
+    function escapeHtml(value) {
+        return value
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    const pageSessionId = crypto.randomUUID();
+    function getSessionId() {
+        return pageSessionId;
+    }
+
+    function appendUserMessage(text) {
         const userMsg = document.createElement('div');
-        userMsg.className = 'flex gap-4 mb-6 flex-row-reverse';
+        userMsg.className = "flex gap-4 mb-6 flex-row-reverse";
         userMsg.innerHTML = `
             <div class="flex-shrink-0">
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bnaGreen text-white">
@@ -102,78 +123,241 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div class="flex flex-col gap-1 max-w-[80%] items-end">
                 <span class="text-xs font-semibold text-gray-500">Vous</span>
-                <div class="rounded-2xl rounded-tr-none bg-bnaNavy p-4 text-white shadow-sm">
-                    ${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}
+                <div class="rounded-2xl rounded-tr-none bg-bnaNavy p-4 text-white">
+                    ${escapeHtml(text)}
                 </div>
             </div>
         `;
         chatArea.appendChild(userMsg);
-        chatInput.value = '';
-        chatArea.scrollTop = chatArea.scrollHeight;
+    }
 
-        if (window.lucide) window.lucide.createIcons();
-
-        // TYPING
-        const botTyping = document.createElement('div');
-        botTyping.id = 'tempTyping';
-        botTyping.className = 'flex gap-4 mb-6';
-        botTyping.innerHTML = `
+    function createBotMessagePlaceholder() {
+        const botMsg = document.createElement('div');
+        botMsg.className = "flex gap-4 mb-6";
+        botMsg.innerHTML = `
             <div class="flex-shrink-0">
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bnaNavy text-white">
                     <i data-lucide="bot" class="h-5 w-5"></i>
                 </div>
             </div>
+
             <div class="flex flex-col gap-1 max-w-[80%]">
-                <span class="text-xs font-semibold text-gray-500">Assistant</span>
-                <div class="rounded-2xl rounded-tl-none bg-white p-4 shadow-sm text-gray-700">
-                    typing...
+                <span class="text-xs font-semibold text-gray-500">Assistant BNA</span>
+                <div class="rounded-2xl rounded-tl-none bg-white p-4 text-gray-700 bot-text transition-colors duration-300">
+                    ...
                 </div>
             </div>
         `;
-        chatArea.appendChild(botTyping);
+        chatArea.appendChild(botMsg);
+        if (window.lucide) window.lucide.createIcons();
+        return botMsg.querySelector(".bot-text");
+    }
+
+    async function readSSEStream(response, botTextElement) {
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("text/event-stream")) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Impossible de contacter l'assistant.");
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            let lines = buffer.split('\n\n');
+            buffer = lines.pop(); // Keep the last incomplete chunk
+            
+            for (let chunk of lines) {
+                let eventMatch = chunk.match(/event: (.*)/);
+                if (eventMatch) {
+                    let eventType = eventMatch[1];
+                    let dataLines = chunk.split('\n').filter(l => l.startsWith("data: ")).map(l => l.substring(6)).join('\n');
+                    
+                    if (eventType === "status") {
+                        botTextElement.innerText = dataLines;
+                        botTextElement.classList.add("animate-pulse", "text-bnaGreen");
+                    } else if (eventType === "result") {
+                        try {
+                            let json = JSON.parse(dataLines);
+                            botTextElement.innerHTML = formatMarkdown(json.response || "");
+                            botTextElement.classList.remove("animate-pulse", "text-bnaGreen");
+                            speakText(botTextElement.innerText);
+                        } catch(e) {}
+                    } else if (eventType === "error") {
+                        botTextElement.innerText = dataLines;
+                        botTextElement.classList.remove("animate-pulse", "text-bnaGreen");
+                        botTextElement.classList.add("text-red-500");
+                    }
+                }
+            }
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const res = await fetch(`/api/agent/history/${getSessionId()}`);
+            if (!res.ok) return;
+            const history = await res.json();
+            
+            if (history && history.length > 0) {
+                chatArea.innerHTML = ''; // clear default welcome
+                history.forEach(msg => {
+                    if (msg.role === 'user') {
+                        appendUserMessage(msg.content);
+                    } else if (msg.role === 'assistant') {
+                        const botText = createBotMessagePlaceholder();
+                        botText.innerHTML = formatMarkdown(msg.content);
+                    }
+                });
+                chatArea.scrollTop = chatArea.scrollHeight;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        } catch (e) {
+            console.error("Erreur lors du chargement de l'historique :", e);
+        }
+    }
+
+    function formatMarkdown(text) {
+        if (!text) return "";
+        let html = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-500 underline">$1</a>');
+        html = html.replace(/\n/g, '<br>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        return html;
+    }
+
+    chatForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        chatInput.disabled = true;
+
+        appendUserMessage(text);
+        chatInput.value = "";
         chatArea.scrollTop = chatArea.scrollHeight;
 
+        const botText = createBotMessagePlaceholder();
+        botText.innerHTML = '<span class="animate-pulse text-gray-500">L\'assistant est en train de taper...</span>';
+
+        try {
+            const response = await fetch('/api/agent/message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: text,
+                    sessionId: getSessionId()
+                })
+            });
+
+            await readSSEStream(response, botText);
+        } catch (error) {
+            botText.innerText = error.message || "Une erreur est survenue.";
+            botText.classList.remove("animate-pulse", "text-bnaGreen");
+            botText.classList.add("text-red-500");
+        } finally {
+            chatInput.disabled = false;
+            chatInput.focus();
+        }
+
         if (window.lucide) window.lucide.createIcons();
+    });
 
-        // =========================
-        // 🔵 CHANGE AREA START
-        // =========================
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: text })
-        });
+    // File Upload Logic
+    btnUpload.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
 
-        const data = await response.json();
-        // =========================
-        // 🔵 CHANGE AREA END
-        // =========================
+        appendUserMessage(`[Fichier en cours d'envoi : ${file.name}]`);
+        chatArea.scrollTop = chatArea.scrollHeight;
 
-        const temp = document.getElementById('tempTyping');
+        const formData = new FormData();
+        formData.append('file', file);
 
-        if (temp) {
-            temp.innerHTML = `
-                <div class="flex-shrink-0">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-bnaNavy text-white">
-                        <i data-lucide="bot" class="h-5 w-5"></i>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-1 max-w-[80%]">
-                    <span class="text-xs font-semibold text-gray-500">Assistant BNA</span>
-                    <div class="rounded-2xl rounded-tl-none bg-white p-4 shadow-sm text-gray-700">
-                        ${data.reply}
-                    </div>
-                </div>
-            `;
+        try {
+            const res = await fetch('/api/agent/upload', {
+                method: 'POST',
+                body: formData
+            });
 
-            if (window.lucide) window.lucide.createIcons();
-            chatArea.scrollTop = chatArea.scrollHeight;
+            if (!res.ok) throw new Error(await res.text());
+            
+            appendUserMessage(`J'ai joint le fichier ${file.name} à mon dossier.`);
+            
+            // Optionally, tell the bot about it
+            chatInput.value = `Voici un document : ${file.name}`;
+            chatForm.dispatchEvent(new Event('submit'));
+        } catch(e) {
+            appendUserMessage(`Erreur d'envoi : ${e.message}`);
+        }
+        
+        fileInput.value = ""; // Reset
+    });
 
-            temp.removeAttribute('id');
+    // Audio Recording Logic
+    btnMic.addEventListener('pointerdown', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            isRecording = true;
+            btnMic.classList.add('bg-red-100', 'text-red-600', 'animate-pulse');
+            
+            mediaRecorder.ondataavailable = e => {
+                audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = [];
+                
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'voice.webm');
+
+                appendUserMessage("[Message vocal...]");
+                const botText = createBotMessagePlaceholder();
+
+                try {
+                    const res = await fetch('/api/agent/speech', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    await readSSEStream(res, botText);
+                } catch(e) {
+                    botText.innerText = "Erreur de transcription audio.";
+                    botText.classList.remove("animate-pulse", "text-bnaGreen");
+                    botText.classList.add("text-red-500");
+                }
+                
+                if (window.lucide) window.lucide.createIcons();
+            };
+        } catch(e) {
+            console.error("Accès micro refusé", e);
         }
     });
+
+    btnMic.addEventListener('pointerup', stopRecording);
+    btnMic.addEventListener('pointerleave', stopRecording);
+
+    function stopRecording() {
+        if (isRecording && mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+            isRecording = false;
+            btnMic.classList.remove('bg-red-100', 'text-red-600', 'animate-pulse');
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        }
+    }
+
+    loadHistory();
 });
 </script>
 }

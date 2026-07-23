@@ -48,7 +48,26 @@
 
             <div class="hidden items-center gap-3 lg:flex">
                 <a class="btn btn-ghost" asp-controller="Home" asp-action="NosAgences">Nos Agences</a>
-                <a class="btn btn-primary" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+                @if (User.Identity is { IsAuthenticated: true })
+                {
+                    @if (User.IsInRole("Assureur"))
+                    {
+                        <a class="btn btn-ghost" asp-controller="Reclamation" asp-action="Gestion">Espace Gestion</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-ghost" asp-controller="Reclamation" asp-action="MesReclamations">Suivi Réclamation</a>
+                    }
+                    <a class="btn btn-primary" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="m-0 p-0 inline">
+                        <button type="submit" class="btn btn-ghost text-red-600 hover:text-red-700">Déconnexion</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="btn btn-ghost" asp-controller="Account" asp-action="Login">Se connecter</a>
+                    <a class="btn btn-primary" asp-controller="Account" asp-action="Signup">S'inscrire</a>
+                }
             </div>
 
             <button id="mobileMenuButton" class="icon-button lg:hidden" type="button" aria-label="Ouvrir le menu" aria-controls="mobileMenu" aria-expanded="false">
@@ -76,7 +95,26 @@
             </div>
             <div class="mt-8 grid gap-3">
                 <a class="btn btn-ghost-dark justify-center" asp-controller="Home" asp-action="NosAgences">Nos Agences</a>
-                <a class="btn btn-primary justify-center" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+                @if (User.Identity is { IsAuthenticated: true })
+                {
+                    @if (User.IsInRole("Assureur"))
+                    {
+                        <a class="btn btn-ghost-dark justify-center" asp-controller="Reclamation" asp-action="Gestion">Espace Gestion</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-ghost-dark justify-center" asp-controller="Reclamation" asp-action="MesReclamations">Suivi Réclamation</a>
+                    }
+                    <a class="btn btn-primary justify-center" asp-controller="Reclamation" asp-action="Create">Réclamer</a>
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="m-0 p-0 w-full flex">
+                        <button type="submit" class="btn btn-ghost-dark justify-center w-full text-red-600">Déconnexion</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="btn btn-ghost-dark justify-center" asp-controller="Account" asp-action="Login">Se connecter</a>
+                    <a class="btn btn-primary justify-center" asp-controller="Account" asp-action="Signup">S'inscrire</a>
+                }
             </div>
             <div class="mt-10 border-t border-slate-200 pt-6 text-sm text-slate-500">
                 Disponible partout en Tunisie grâce à 125 agences de proximité.
