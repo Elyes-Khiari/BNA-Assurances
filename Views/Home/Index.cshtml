@@ -400,16 +400,65 @@
             const aiExpandLink = document.getElementById('aiExpandLink');
             const form = document.getElementById('aiAssistantForm');
             
-            let isExpanded = false;
+            function getSessionId() {
+                let sid = localStorage.getItem('bna_agent_session_id');
+                if (!sid) {
+                    sid = 'session_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+                    localStorage.setItem('bna_agent_session_id', sid);
+                }
+                return sid;
+            }
+
+            function formatMarkdown(text) {
+                if (!text) return "";
+                let html = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-500 underline">$1</a>');
+                html = html.replace(/\n/g, '<br>');
+                html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                return html;
+            }
+
+            async function readSSEStream(response, botContentElem) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.replace(/^data:\s*/, '').trim();
+                            if (!dataStr) continue;
+
+                            try {
+                                const parsed = JSON.parse(dataStr);
+                                if (parsed.response) {
+                                    botContentElem.innerHTML = formatMarkdown(parsed.response);
+                                    aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
+                                }
+                            } catch (e) {
+                                botContentElem.innerHTML = formatMarkdown(dataStr);
+                                aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
+                            }
+                        }
+                    }
+                }
+            }
 
             suggestionBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
-                    aiInput.value = this.textContent;
+                    aiInput.value = this.textContent.trim();
                     aiInput.focus();
+                    form.dispatchEvent(new Event('submit'));
                 });
             });
 
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const text = aiInput.value.trim();
                 if (!text) return;
@@ -426,7 +475,7 @@
                 }
 
                 // Update expand link
-                aiExpandLink.href = '/assistant?q=' + encodeURIComponent(text);
+                aiExpandLink.href = '/assistant';
 
                 // Add user message
                 const userMsg = document.createElement('div');
@@ -449,48 +498,50 @@
                 if (window.lucide) window.lucide.createIcons();
                 aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
 
-                // Add typing indicator
-                const botTyping = document.createElement('div');
-                botTyping.className = 'flex gap-3';
-                botTyping.id = 'tempTyping';
-                botTyping.innerHTML = `
+                // Add bot message placeholder
+                const botMsgContainer = document.createElement('div');
+                botMsgContainer.className = 'flex gap-3';
+                botMsgContainer.innerHTML = `
                     <div class="flex-shrink-0">
                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-bnaNavy shadow-sm ring-1 ring-gray-200">
                             <i data-lucide="bot" class="h-4 w-4"></i>
                         </div>
                     </div>
                     <div class="flex flex-col gap-1 max-w-[85%]">
-                        <div class="rounded-2xl rounded-tl-none bg-white px-4 py-3 shadow-sm ring-1 ring-black/5 text-gray-700 flex items-center gap-1.5 h-[44px]">
-                            <span class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 0ms;"></span>
-                            <span class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 150ms;"></span>
-                            <span class="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 300ms;"></span>
+                        <div class="bot-content-elem rounded-2xl rounded-tl-none bg-white px-4 py-3 shadow-sm ring-1 ring-black/5 text-gray-700 text-sm leading-relaxed">
+                            <span class="animate-pulse text-gray-400">L'assistant BNA est en train de réfléchir...</span>
                         </div>
                     </div>
                 `;
-                aiChatHistory.appendChild(botTyping);
+                aiChatHistory.appendChild(botMsgContainer);
                 if (window.lucide) window.lucide.createIcons();
                 aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
 
-                setTimeout(() => {
-                    const temp = document.getElementById('tempTyping');
-                    if (temp) {
-                        temp.innerHTML = `
-                            <div class="flex-shrink-0">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-bnaNavy shadow-sm ring-1 ring-gray-200">
-                                    <i data-lucide="bot" class="h-4 w-4"></i>
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-1 max-w-[85%]">
-                                <div class="rounded-2xl rounded-tl-none bg-white px-4 py-3 shadow-sm ring-1 ring-black/5 text-gray-700 text-sm leading-relaxed">
-                                    <p>Merci pour votre demande. Notre intégration IA est en cours de développement. Bientôt, je pourrai analyser "${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}" et vous guider pas à pas dans vos démarches.</p>
-                                </div>
-                            </div>
-                        `;
-                        if (window.lucide) window.lucide.createIcons();
-                        aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
-                        temp.removeAttribute('id');
-                    }
-                }, 1200);
+                const botContentElem = botMsgContainer.querySelector('.bot-content-elem');
+
+                try {
+                    aiInput.disabled = true;
+                    const response = await fetch('/api/agent/message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: text,
+                            sessionId: getSessionId()
+                        })
+                    });
+
+                    await readSSEStream(response, botContentElem);
+                } catch (err) {
+                    botContentElem.innerText = "Désolé, une erreur est survenue lors de la communication avec l'assistant.";
+                    botContentElem.classList.add("text-red-500");
+                } finally {
+                    aiInput.disabled = false;
+                    aiInput.focus();
+                    if (window.lucide) window.lucide.createIcons();
+                    aiChatHistory.scrollTop = aiChatHistory.scrollHeight;
+                }
             });
         });
     </script>
