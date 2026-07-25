@@ -34,7 +34,7 @@ public class ReclamationService
 
         var createReq = new HttpRequestMessage(HttpMethod.Post, $"{_supabaseUrl}/rest/v1/Reclamations");
         createReq.Headers.Add("Prefer", "return=representation");
-        createReq.Content = System.Net.Http.Json.JsonContent.Create(reclamation, options: new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault });
+        createReq.Content = System.Net.Http.Json.JsonContent.Create(reclamation, options: new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
 
         var createRes = await _http.SendAsync(createReq);
         if (!createRes.IsSuccessStatusCode)
@@ -44,7 +44,7 @@ public class ReclamationService
         }
 
         var json = await createRes.Content.ReadAsStringAsync();
-        var createdList = JsonSerializer.Deserialize<List<Reclamation>>(json);
+        var createdList = JsonSerializer.Deserialize<List<Reclamation>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (createdList == null || createdList.Count == 0) throw new Exception("No data returned from Supabase.");
         
         var created = createdList[0];

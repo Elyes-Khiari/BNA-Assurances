@@ -80,8 +80,9 @@ public class AgentController : ControllerBase
         // from the DB so subsequent replies don't see stale data from previous sessions.
         var msgLower = request.Message.Trim().ToLowerInvariant();
         bool isNewDevisRequest = msgLower.Contains("devis") || msgLower.Contains("estimation") || msgLower.Contains("combien coûte") || msgLower.Contains("prix d'un contrat");
+        bool isNewReclamationRequest = msgLower.Contains("réclamation") || msgLower.Contains("reclamation") || msgLower.Contains("sinistre") || msgLower.Contains("déclarer");
 
-        if (isNewDevisRequest)
+        if (isNewDevisRequest || isNewReclamationRequest)
         {
             await ClearOldMessages(conversationId);
         }
@@ -852,13 +853,18 @@ CONSIGNES STRICTES :
             NumeroSinistre = Get("numero_sinistre"),
             Objet = objet,
             Description = description,
-            DateProblemeDepuis = Get("date_probleme_depuis"),
-            DemarchesDejaEntreprises = Get("demarches_deja_entreprises"),
-            ResultatSouhaite = Get("resultat_souhaite"),
             Canal = CanalReclamation.Chatbot
         };
 
         var created = await _reclamationService.CreateReclamation(reclamation);
+
+        // Supprimer le brouillon une fois la réclamation confirmée et créée
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+        var deleteReq = new HttpRequestMessage(HttpMethod.Delete, $"{supabaseUrl}/rest/v1/reclamation_drafts?id=eq.{draft.Id}");
+        deleteReq.Headers.Add("apikey", supabaseKey);
+        deleteReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
+        await _http.SendAsync(deleteReq);
 
         return new
         {

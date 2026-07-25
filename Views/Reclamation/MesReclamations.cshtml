@@ -5,9 +5,14 @@
 }
 
 <div class="mx-auto max-w-7xl px-5 py-24 pt-32 lg:px-8">
-    <div class="mb-10">
-        <h1 class="text-3xl font-display font-bold text-bnaNavy">Mes Réclamations</h1>
-        <p class="mt-2 text-slate-600">Suivez l'état d'avancement de vos dossiers en cours.</p>
+    <div class="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-bnaNavy">Mes Réclamations</h1>
+            <p class="mt-2 text-slate-600">Suivez l'état d'avancement de vos dossiers en cours.</p>
+        </div>
+        <a asp-controller="Home" asp-action="Assistant" asp-route-msg="Je veux déclarer une réclamation" class="btn btn-primary whitespace-nowrap">
+            <i data-lucide="plus" class="h-4 w-4 mr-2"></i> Déposer une réclamation
+        </a>
     </div>
 
     @if (!Model.Any())
@@ -19,7 +24,7 @@
             <h3 class="text-lg font-semibold text-bnaNavy">Aucune réclamation en cours</h3>
             <p class="mt-2 text-slate-600">Vous n'avez soumis aucune réclamation pour le moment.</p>
             <div class="mt-6">
-                <a asp-action="Create" class="btn btn-primary">Déposer une réclamation</a>
+                <a asp-controller="Home" asp-action="Assistant" asp-route-msg="Je veux déclarer une réclamation" class="btn btn-primary">Déposer une réclamation</a>
             </div>
         </div>
     }
@@ -135,21 +140,7 @@
                                         </div>
                                     }
 
-                                    @if (!string.IsNullOrEmpty(rec.DemarchesDejaEntreprises))
-                                    {
-                                        <div>
-                                            <h4 class="text-sm font-medium text-slate-500">Démarches déjà entreprises</h4>
-                                            <p class="mt-1 text-sm text-slate-900">@rec.DemarchesDejaEntreprises</p>
-                                        </div>
-                                    }
-                                    
-                                    @if (!string.IsNullOrEmpty(rec.ResultatSouhaite))
-                                    {
-                                        <div>
-                                            <h4 class="text-sm font-medium text-slate-500">Résultat souhaité</h4>
-                                            <p class="mt-1 text-sm text-slate-900">@rec.ResultatSouhaite</p>
-                                        </div>
-                                    }
+
 
                                     @if (!string.IsNullOrEmpty(rec.CommentaireResolution))
                                     {

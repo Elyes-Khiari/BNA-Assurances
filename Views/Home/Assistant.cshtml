@@ -280,9 +280,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const file = this.files[0];
         if (!file) return;
 
-        appendUserMessage(`[Fichier en cours d'envoi : ${file.name}]`);
-        chatArea.scrollTop = chatArea.scrollHeight;
-
         const formData = new FormData();
         formData.append('file', file);
 
@@ -294,11 +291,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!res.ok) throw new Error(await res.text());
             
-            appendUserMessage(`J'ai joint le fichier ${file.name} à mon dossier.`);
-            
-            // Optionally, tell the bot about it
-            chatInput.value = `Voici un document : ${file.name}`;
-            chatForm.dispatchEvent(new Event('submit'));
+            // Tell the bot about it, which will auto-append one message to the chat
+            chatInput.value = `[Pièce jointe ajoutée : ${file.name}]`;
+            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
         } catch(e) {
             appendUserMessage(`Erreur d'envoi : ${e.message}`);
         }
@@ -361,7 +356,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    loadHistory();
+    loadHistory().then(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoMsg = urlParams.get('msg');
+        if (autoMsg) {
+            chatInput.value = autoMsg;
+            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            // Remove the msg param from url so it doesn't trigger on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
 });
 </script>
 }
