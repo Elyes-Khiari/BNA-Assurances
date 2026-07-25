@@ -92,16 +92,17 @@ public class AgentController : ControllerBase
         var history = await LoadHistory(conversationId);
 
         // Detect if devis calculation has already been output in this conversation
+        var serializeOptions = new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
         bool devisAlreadyCalculated = history.Any(h =>
         {
-            var json = JsonSerializer.Serialize(h);
+            var json = JsonSerializer.Serialize(h, serializeOptions);
             return json.Contains("TOTAL ANNUEL ESTIMÉ") || json.Contains("Votre devis PDF a été envoyé");
         });
 
         // Detect if this ongoing conversation is currently in an active devis question gathering mode
         bool isDevisSession = (isNewDevisRequest || history.Any(h =>
         {
-            var json = JsonSerializer.Serialize(h);
+            var json = JsonSerializer.Serialize(h, serializeOptions);
             return json.Contains("puissance") || json.Contains("devis") || json.Contains("estimation") || json.Contains("CV");
         })) && !devisAlreadyCalculated;
 
