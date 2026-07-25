@@ -18,6 +18,7 @@ public class AgentController : ControllerBase
     private readonly IConfiguration _config;
     private readonly ReclamationService _reclamationService;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonElement> _devisMemoryCache = new();
 
     public AgentController(IHttpClientFactory httpClientFactory, IConfiguration config, ReclamationService reclamationService, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
@@ -75,43 +76,111 @@ public class AgentController : ControllerBase
             draft = await GetDraft(conversationId);
         }
 
+        // Detect if the user is starting a new devis — if so, wipe old messages
+        // from the DB so subsequent replies don't see stale data from previous sessions.
+        var msgLower = request.Message.Trim().ToLowerInvariant();
+        bool isNewDevisRequest = msgLower.Contains("devis") || msgLower.Contains("estimation") || msgLower.Contains("combien coûte") || msgLower.Contains("prix d'un contrat");
+
+        if (isNewDevisRequest)
+        {
+            await ClearOldMessages(conversationId);
+        }
+
         await SaveMessage(conversationId, "user", request.Message);
+
         var history = await LoadHistory(conversationId);
 
-        const int maxHistoryMessages = 6;
-        if (history.Count > maxHistoryMessages)
+        // Detect if devis calculation has already been output in this conversation
+        bool devisAlreadyCalculated = history.Any(h =>
         {
-            history = history.Skip(history.Count - maxHistoryMessages).ToList();
+            var json = JsonSerializer.Serialize(h);
+            return json.Contains("TOTAL ANNUEL ESTIMÉ") || json.Contains("Votre devis PDF a été envoyé");
+        });
+
+        // Detect if this ongoing conversation is currently in an active devis question gathering mode
+        bool isDevisSession = (isNewDevisRequest || history.Any(h =>
+        {
+            var json = JsonSerializer.Serialize(h);
+            return json.Contains("puissance") || json.Contains("devis") || json.Contains("estimation") || json.Contains("CV");
+        })) && !devisAlreadyCalculated;
+
+        int totalUserMsgCount = history.Count(h => 
+        {
+            var json = JsonSerializer.Serialize(h);
+            return json.Contains("\"role\":\"user\"");
+        });
+
+        string systemPrompt;
+        object[] tools;
+
+        // Handle Email sending if user sends an email address right after devis estimation
+        if (request.Message.Contains("@"))
+        {
+            var emailMatch = System.Text.RegularExpressions.Regex.Match(request.Message, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+            if (emailMatch.Success)
+            {
+                var targetEmail = emailMatch.Value;
+                var lastDevisId = _devisMemoryCache.Keys.LastOrDefault() ?? "D-LOCAL-1";
+                var sendArgs = JsonSerializer.Serialize(new { email = targetEmail, devis_id = lastDevisId });
+                await SendDevisEmail(sendArgs);
+                
+                var resText = $"Votre devis PDF a été envoyé avec succès par e-mail à **{targetEmail}** ! Un conseiller BNA Assurances vous contactera très prochainement.";
+                await SaveMessage(conversationId, "assistant", resText);
+                await SendSseEvent("result", JsonSerializer.Serialize(new { response = resText }));
+                return;
+            }
+        }
+
+        if (isDevisSession)
+        {
+            if (totalUserMsgCount >= 6)
+            {
+                // All 5 questions have been answered — perform exact deterministic calculation in C#
+                var devisFormattedText = await CalculateAndFormatDevis(history);
+                await SaveMessage(conversationId, "assistant", devisFormattedText);
+                await SendSseEvent("result", JsonSerializer.Serialize(new { response = devisFormattedText }));
+                return;
+            }
+
+            systemPrompt = @"Tu es l'assistant virtuel de BNA Assurances. Tu aides le client à obtenir un devis assurance auto.
+
+RÈGLE D'OR : Ne fais AUCUN commentaire, aucune critique et aucun débat sur les réponses du client !
+- Ne commente jamais la puissance fiscale (ex: si le client dit '5 cv' ou '6 cv', c'est parfait, ne discute pas).
+- Ne commente jamais le modèle ou l'année (ex: si le client dit 'Tiguan 2025' ou 'Audi A3 2019', ne conteste pas).
+- Contente-toi d'enregistrer silencieusement la réponse et de poser LA QUESTION SUIVANTE.
+
+Voici les 5 questions exactes à poser dans l'ordre strict :
+Question 1 : ""Quelle est la puissance fiscale de votre véhicule (en CV) ?""
+Question 2 : ""Quel est l'usage principal de votre véhicule (privé ou professionnel) ?""
+Question 3 : ""Quel est le statut du conducteur : nouveau conducteur, 2ème véhicule, ou voiture de fonction ?""
+Question 4 : ""Quel est le modèle exact et l'année de fabrication de votre véhicule ?""
+Question 5 : ""Quelles garanties optionnelles souhaitez-vous ajouter à la Responsabilité Civile obligatoire ? (ex : Vol, Incendie, Dommages, Bris de glace, Tout risques, ou Aucune)""
+
+CONSIGNES STRICTES :
+- Analyse l'historique de la conversation ci-dessous pour voir quelles questions ont DÉJÀ été posées et auxquelles le client a répondu.
+- Pose UNIQUEMENT le texte de la PREMIÈRE question non encore traitée. Ne pose QU'UNE SEULE question à la fois.";
+
+            tools = new object[0];
+        }
+        else
+        {
+            systemPrompt = isAuthenticated ? ReclamationAgentTools.SystemPrompt : ReclamationAgentTools.GuestSystemPrompt;
+            tools = (isAuthenticated ? ReclamationAgentTools.Tools : ReclamationAgentTools.GuestTools)
+                .Concat(DevisPricingTools.Tools)
+                .ToArray();
         }
 
         var messages = new List<object>
         {
-            new { role = "system", content = (isAuthenticated ? ReclamationAgentTools.SystemPrompt : ReclamationAgentTools.GuestSystemPrompt) + @"
-    - **RÉINITIALISATION :** Si le client exprime la volonté de faire un nouveau devis (ex: 'je veux obtenir un devis'), TU DOIS IGNORER TOUT L'HISTORIQUE PRÉCÉDENT et recommencer OBLIGATOIREMENT à l'ÉTAPE 1. Ne présume RIEN.
-    - **RÈGLE STRICTE :** Tu NE DOIS JAMAIS appeler `estimate_devis` avant d'avoir obtenu la réponse aux questions des étapes 1 à 5, ET d'avoir appelé `search_car_price`.
-    - **ÉTAPE 1 :** Demande *uniquement* la puissance fiscale (en CV). **ATTENDS LA RÉPONSE**.
-    - **ÉTAPE 2 :** Demande *uniquement* l'usage (privé/professionnel). **ATTENDS LA RÉPONSE**.
-    - **ÉTAPE 3 :** Demande *uniquement* si nouveau conducteur / 2ème véhicule / fonction. **ATTENDS LA RÉPONSE**.
-    - **ÉTAPE 4 :** Demande *uniquement* le modèle exact et l'année. **ATTENDS LA RÉPONSE**.
-    - **ÉTAPE 5 :** Demande *uniquement* les garanties optionnelles. **ATTENDS LA RÉPONSE**.
-    - **ÉTAPE 6 :** Appelle l'outil `search_car_price` pour trouver le prix réel en Tunisie. **ATTENDS L'OUTIL**.
-    - **ÉTAPE 7 :** Appelle `estimate_devis`. AFFICHE LE PRIX TOTAL. Ensuite, dis ""Ceci est une estimation indicative. Souhaitez-vous recevoir une copie par e-mail ? "".
-    - **ÉTAPE 8 :** Si e-mail fourni, appelle `send_devis_email`.
-    - **INTERRUPTIONS :** Si le client pose une question hors-sujet au milieu du devis, réponds-lui puis ramène-le immédiatement à l'étape en cours." }
+            new { role = "system", content = systemPrompt }
         };
         
-        if (draft != null)
+        if (draft != null && !isDevisSession)
         {
-            messages.Add(new { role = "system", content = $"État actuel du dossier de RÉCLAMATION (ne redemande jamais ces champs) : {JsonSerializer.Serialize(draft.Data)}. IMPORTANT : Si le client demande un DEVIS, ignore cet état et commence toujours à l'ÉTAPE 1 du devis." });
+            messages.Add(new { role = "system", content = $"État actuel du dossier de RÉCLAMATION (ne redemande jamais ces champs) : {JsonSerializer.Serialize(draft.Data)}." });
         }
         
         messages.AddRange(history);
-
-        // On ajoute le tool de devis au jeu d'outils existant (client connecté ou invité) —
-        // fichier séparé DevisPricingTools.cs, aucun changement dans ReclamationAgentTools.cs requis.
-        var tools = (isAuthenticated ? ReclamationAgentTools.Tools : ReclamationAgentTools.GuestTools)
-            .Concat(DevisPricingTools.Tools)
-            .ToArray();
 
         var trace = new List<object>();
 
@@ -167,7 +236,13 @@ public class AgentController : ControllerBase
 
             trace.Add(new { step = i + 1, tool = toolName, args = argsJson, result = toolResult });
 
-            messages.Add(responseMessage!);
+            // Clean the assistant message to remove unsupported fields like 'refusal'
+            var cleanAssistantMsg = new Dictionary<string, object?> { ["role"] = "assistant" };
+            if (responseMessage.TryGetProperty("content", out var cProp) && cProp.ValueKind != JsonValueKind.Null)
+                cleanAssistantMsg["content"] = cProp.GetString();
+            if (responseMessage.TryGetProperty("tool_calls", out var tcProp))
+                cleanAssistantMsg["tool_calls"] = tcProp;
+            messages.Add(cleanAssistantMsg);
             messages.Add(new
             {
                 role = "tool",
@@ -249,16 +324,21 @@ public class AgentController : ControllerBase
         var groqKey = _config["Groq:ApiKey"];
         try 
         {
-            return await CallLlmProvider(messages, groqKey, tools, "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile");
+            return await CallLlmProvider(messages, groqKey, tools, "https://api.groq.com/openai/v1/chat/completions", "llama-3.1-8b-instant");
         }
         catch (Exception ex)
         {
-            var openRouterKey = _config["OpenRouter:ApiKey"];
-            if (!string.IsNullOrEmpty(openRouterKey))
+            // Only fallback to OpenRouter on rate limit errors
+            if (ex.Message.Contains("rate_limit") || ex.Message.Contains("429"))
             {
-                return await CallLlmProvider(messages, openRouterKey, tools, "https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.3-70b-instruct");
+                var openRouterKey = _config["OpenRouter:ApiKey"];
+                if (!string.IsNullOrEmpty(openRouterKey))
+                {
+                    return await CallLlmProvider(messages, openRouterKey, tools, "https://openrouter.ai/api/v1/chat/completions", "meta-llama/llama-3.1-8b-instruct");
+                }
             }
-            throw new Exception($"Erreur Groq: {ex.Message} (Et aucune clé OpenRouter configurée pour le fallback).");
+            // For all other errors, show the actual Groq error
+            throw;
         }
     }
 
@@ -271,14 +351,30 @@ public class AgentController : ControllerBase
             var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-            request.Content = JsonContent.Create(new
+            object requestBody;
+            if (tools.Length > 0)
             {
-                model = model,
-                messages,
-                tools = tools.Length > 0 ? tools : null,
-                tool_choice = tools.Length > 0 ? "auto" : null,
-                temperature = 0.1
-            });
+                requestBody = new
+                {
+                    model = model,
+                    messages,
+                    tools,
+                    tool_choice = "auto",
+                    temperature = 0.1,
+                    max_tokens = 1024
+                };
+            }
+            else
+            {
+                requestBody = new
+                {
+                    model = model,
+                    messages,
+                    temperature = 0.1,
+                    max_tokens = 1024
+                };
+            }
+            request.Content = JsonContent.Create(requestBody);
 
             var response = await _http.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();
@@ -296,7 +392,8 @@ public class AgentController : ControllerBase
 
                 if (!string.IsNullOrEmpty(content) && (content.Contains("<function=") || content.Contains("{\"name\":") || content.Contains("{\"function\":")))
                 {
-                    messages.Add(message);
+                    var cleanMsg = new Dictionary<string, object?> { ["role"] = "assistant", ["content"] = content };
+                    messages.Add(cleanMsg);
                     messages.Add(new { role = "user", content = "SYSTEM ERROR: You leaked a tool call in your text response (e.g. {\"name\": ...}). You MUST NOT write tool calls in your text. Please use the native JSON tool_calls API." });
                     continue;
                 }
@@ -364,14 +461,27 @@ public class AgentController : ControllerBase
         await _http.SendAsync(request);
     }
 
+    private async Task ClearOldMessages(Guid conversationId)
+    {
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+
+        var request = new HttpRequestMessage(HttpMethod.Delete,
+            $"{supabaseUrl}/rest/v1/messages?conversation_id=eq.{conversationId}");
+        request.Headers.Add("apikey", supabaseKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
+
+        try { await _http.SendAsync(request); } catch { /* ignore */ }
+    }
+
     private async Task<List<object>> LoadHistory(Guid conversationId)
     {
         var supabaseUrl = _config["Supabase:Url"];
         var supabaseKey = _config["Supabase:ServiceKey"];
 
-        // Limiter aux 6 derniers messages (desc) pour économiser le contexte/TPM de Groq
+        // Limiter aux 20 derniers messages (desc) pour garder l'ensemble de la session devis/réclamation
         var request = new HttpRequestMessage(HttpMethod.Get,
-            $"{supabaseUrl}/rest/v1/messages?conversation_id=eq.{conversationId}&order=created_at.desc&limit=6&select=role,content");
+            $"{supabaseUrl}/rest/v1/messages?conversation_id=eq.{conversationId}&order=created_at.desc&limit=20&select=role,content");
         request.Headers.Add("apikey", supabaseKey);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
 
@@ -912,6 +1022,145 @@ public class AgentController : ControllerBase
         await SendMessage(new AgentRequest { Message = text });
     }
 
+    private async Task<string> CalculateAndFormatDevis(List<object> history)
+    {
+        int pf = 6;
+        string usage = "prive";
+        int bonusMalus = 4;
+        string carModel = "Véhicule";
+        int annee = 2020;
+        var garanties = new List<string>();
+
+        foreach (var msgObj in history)
+        {
+            var jsonStr = JsonSerializer.Serialize(msgObj);
+            using var doc = JsonDocument.Parse(jsonStr);
+            if (!doc.RootElement.TryGetProperty("role", out var r) || r.GetString() != "user") continue;
+            var text = doc.RootElement.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "";
+            var textLower = text.ToLowerInvariant();
+
+            // 1. Puissance
+            var pfMatch = System.Text.RegularExpressions.Regex.Match(textLower, @"(\d+)\s*cv");
+            if (pfMatch.Success) pf = int.Parse(pfMatch.Groups[1].Value);
+
+            // 2. Usage
+            if (textLower.Contains("affaire") || textLower.Contains("pro")) usage = "affaire";
+
+            // 3. Modèle / Année
+            var yearMatch = System.Text.RegularExpressions.Regex.Match(text, @"(19\d\d|20\d\d)");
+            if (yearMatch.Success)
+            {
+                annee = int.Parse(yearMatch.Groups[1].Value);
+                var cleanedModel = text.Replace(yearMatch.Value, "").Replace("modèle", "").Replace("modele", "").Trim();
+                if (!string.IsNullOrWhiteSpace(cleanedModel) && cleanedModel.Length > 2) carModel = cleanedModel;
+            }
+
+            // 4. Garanties
+            if (textLower.Contains("vol")) garanties.Add("vol");
+            if (textLower.Contains("incendie")) garanties.Add("incendie");
+            if (textLower.Contains("bris") || textLower.Contains("glace")) garanties.Add("bris_glace");
+            if (textLower.Contains("collision")) garanties.Add("dommages_collision");
+            if (textLower.Contains("tout") || textLower.Contains("tous") || textLower.Contains("dommage"))
+            {
+                garanties.Add("vol");
+                garanties.Add("incendie");
+                garanties.Add("dommages_vehicule");
+                garanties.Add("bris_glace");
+            }
+        }
+
+        if (garanties.Count == 0) garanties.Add("incendie");
+
+        // Recherche Web RÉELLE du prix du véhicule sur le marché tunisien (Tayara, Automobile.tn, etc.)
+        decimal valeurVenale = 0m;
+        try
+        {
+            var searchArgs = JsonSerializer.Serialize(new { marque = "", modele = carModel, annee = annee });
+            var webResult = await SearchCarPriceOnWeb(searchArgs);
+            var webJson = JsonSerializer.Serialize(webResult);
+            
+            var priceMatches = System.Text.RegularExpressions.Regex.Matches(webJson, @"(\d{2,3}[\s.]?\d{3})\s*(?:DT|dt|dinars|DNT)");
+            var foundPrices = new List<decimal>();
+            foreach (System.Text.RegularExpressions.Match m in priceMatches)
+            {
+                var cleanNum = m.Groups[1].Value.Replace(" ", "").Replace(".", "");
+                if (decimal.TryParse(cleanNum, out var p) && p >= 12000m && p <= 350000m)
+                {
+                    foundPrices.Add(p);
+                }
+            }
+            if (foundPrices.Count > 0)
+            {
+                valeurVenale = Math.Round(foundPrices.Average(), 3);
+            }
+        }
+        catch { }
+
+        // Fallback réaliste basé sur le segment du marché tunisien si le Web ne donne aucun chiffre
+        if (valeurVenale <= 0m)
+        {
+            string modelLower = carModel.ToLower();
+            if (modelLower.Contains("audi") || modelLower.Contains("bmw") || modelLower.Contains("mercedes") || modelLower.Contains("tiguan") || modelLower.Contains("passat") || modelLower.Contains("porsche") || modelLower.Contains("touareg") || modelLower.Contains("land rover"))
+            {
+                valeurVenale = Math.Max(35000m, 110000m - (2026 - annee) * 7500m);
+            }
+            else if (modelLower.Contains("golf") || modelLower.Contains("peugeot") || modelLower.Contains("renault") || modelLower.Contains("toyota") || modelLower.Contains("kia") || modelLower.Contains("hyundai") || modelLower.Contains("seat") || modelLower.Contains("ford"))
+            {
+                valeurVenale = Math.Max(20000m, 70000m - (2026 - annee) * 5000m);
+            }
+            else
+            {
+                valeurVenale = Math.Max(12000m, 40000m - (2026 - annee) * 3000m);
+            }
+        }
+
+        decimal valeurCatalogue = Math.Round(valeurVenale * 1.35m, 3);
+
+        var devisReq = new DevisPricingCalculator.DevisRequest
+        {
+            PuissanceFiscale = pf,
+            Usage = usage,
+            ClasseBonusMalus = bonusMalus,
+            ValeurVenale = valeurVenale,
+            ValeurCatalogue = valeurCatalogue,
+            GarantiesSouhaitees = garanties.Distinct().ToList()
+        };
+
+        var config = await GetDevisPricingConfig();
+        var res = DevisPricingCalculator.Calculer(devisReq, config);
+
+        var newDevisId = "D-LOCAL-" + Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
+
+        var devisDataObj = new
+        {
+            puissance_fiscale = devisReq.PuissanceFiscale,
+            usage = devisReq.Usage,
+            classe_bonus_malus = devisReq.ClasseBonusMalus,
+            valeur_venale = devisReq.ValeurVenale,
+            valeur_catalogue = devisReq.ValeurCatalogue,
+            total_estime_dt = res.Total,
+            detail_json = res.DetailParGarantie
+        };
+
+        var devisJsonText = JsonSerializer.Serialize(devisDataObj);
+        using var devisDoc = JsonDocument.Parse(devisJsonText);
+        _devisMemoryCache[newDevisId] = devisDoc.RootElement.Clone();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"**Estimation indicative de votre devis auto BNA Assurances ({carModel} {annee}) :**");
+        sb.AppendLine();
+        foreach (var kvp in res.DetailParGarantie)
+        {
+            sb.AppendLine($"- **{kvp.Key}** : {kvp.Value:N3} DT");
+        }
+        sb.AppendLine("----------------------------------------");
+        sb.AppendLine($"**TOTAL ANNUEL ESTIMÉ : {res.Total:N3} DT**");
+        sb.AppendLine();
+        sb.AppendLine("Souhaitez-vous recevoir une copie détaillée de ce devis par e-mail ? Si oui, merci de m'indiquer votre adresse e-mail.");
+
+        return sb.ToString();
+    }
+
     // =========================================================================
     // DEVIS — calcul déterministe, aucun appel LLM ici
     // =========================================================================
@@ -922,11 +1171,21 @@ public class AgentController : ControllerBase
             using var doc = JsonDocument.Parse(argsJson);
             var root = doc.RootElement;
 
-            int GetInt(string key, int def = 0) =>
-                root.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : def;
+            int GetInt(string key, int def = 0)
+            {
+                if (!root.TryGetProperty(key, out var v)) return def;
+                if (v.ValueKind == JsonValueKind.Number) return v.GetInt32();
+                if (v.ValueKind == JsonValueKind.String && int.TryParse(v.GetString(), out var parsed)) return parsed;
+                return def;
+            }
 
-            decimal GetDecimal(string key, decimal def = 0) =>
-                root.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDecimal() : def;
+            decimal GetDecimal(string key, decimal def = 0)
+            {
+                if (!root.TryGetProperty(key, out var v)) return def;
+                if (v.ValueKind == JsonValueKind.Number) return v.GetDecimal();
+                if (v.ValueKind == JsonValueKind.String && decimal.TryParse(v.GetString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed)) return parsed;
+                return def;
+            }
 
             string GetString(string key, string def = "") =>
                 root.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? def : def;
@@ -965,7 +1224,22 @@ public class AgentController : ControllerBase
                 detail_json = resultat.DetailParGarantie
             });
 
-            string? newDevisId = "D-LOCAL-" + Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
+            var devisDataObj = new
+            {
+                puissance_fiscale = request.PuissanceFiscale,
+                usage = request.Usage,
+                classe_bonus_malus = request.ClasseBonusMalus,
+                valeur_venale = request.ValeurVenale,
+                valeur_catalogue = request.ValeurCatalogue,
+                total_estime_dt = resultat.Total,
+                detail_json = resultat.DetailParGarantie
+            };
+
+            var devisJsonText = JsonSerializer.Serialize(devisDataObj);
+            using var devisDoc = JsonDocument.Parse(devisJsonText);
+            var devisJsonElement = devisDoc.RootElement.Clone();
+
+            string newDevisId = "D-LOCAL-" + Guid.NewGuid().ToString().Substring(0, 4).ToUpper();
             try 
             { 
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -976,11 +1250,14 @@ public class AgentController : ControllerBase
                     using var respDoc = JsonDocument.Parse(jsonRes);
                     if (respDoc.RootElement.ValueKind == JsonValueKind.Array && respDoc.RootElement.GetArrayLength() > 0)
                     {
-                        newDevisId = respDoc.RootElement[0].GetProperty("id").GetString();
+                        var fetchedId = respDoc.RootElement[0].GetProperty("id").GetString();
+                        if (!string.IsNullOrEmpty(fetchedId)) newDevisId = fetchedId;
                     }
                 }
             } 
             catch { /* Ignore logging error if Supabase is offline */ }
+
+            _devisMemoryCache[newDevisId] = devisJsonElement;
 
             return new
             {
@@ -1079,21 +1356,44 @@ public class AgentController : ControllerBase
                 var supabaseUrl = _config["Supabase:Url"];
                 var supabaseKey = _config["Supabase:ServiceKey"];
 
-                // 1. Fetch the devis data
-                var historyReq = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/rest/v1/devis_history?id=eq.{devisId}&select=*");
-                historyReq.Headers.Add("apikey", supabaseKey);
-                historyReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
-                
-                var response = await _http.SendAsync(historyReq);
-                if (!response.IsSuccessStatusCode)
-                    return new { error = "Devis introuvable dans la base." };
+                JsonElement row = default;
+                bool foundInDb = false;
+
+                try
+                {
+                    var historyReq = new HttpRequestMessage(HttpMethod.Get, $"{supabaseUrl}/rest/v1/devis_history?id=eq.{devisId}&select=*");
+                    historyReq.Headers.Add("apikey", supabaseKey);
+                    historyReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseKey);
                     
-                var json = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
-                    return new { error = "Devis introuvable." };
-                    
-                var row = doc.RootElement[0];
+                    var response = await _http.SendAsync(historyReq);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+                        {
+                            row = doc.RootElement[0].Clone();
+                            foundInDb = true;
+                        }
+                    }
+                }
+                catch { }
+
+                if (!foundInDb)
+                {
+                    if (!string.IsNullOrEmpty(devisId) && _devisMemoryCache.TryGetValue(devisId, out var cachedRow))
+                    {
+                        row = cachedRow;
+                    }
+                    else if (_devisMemoryCache.Count > 0)
+                    {
+                        row = _devisMemoryCache.Values.Last();
+                    }
+                    else
+                    {
+                        return new { error = "Devis introuvable dans le système." };
+                    }
+                }
                 
                 // 2. Generate PDF bytes
                 var pdfBytes = BNA_Assurances.Services.DevisPdfGenerator.GeneratePdf(row);

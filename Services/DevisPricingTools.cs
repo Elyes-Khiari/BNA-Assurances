@@ -131,15 +131,15 @@ public static class DevisPricingCalculator
             switch (garantie)
             {
                 case "vol":
-                    detail["Vol"] = Math.Round((config?.VolFixe ?? 30.000m) + (config?.VolMultiplicateur ?? 0.0026m) * req.ValeurVenale, 3);
+                    detail["Vol"] = Math.Round((config?.VolFixe ?? 30.000m) + (config?.VolMultiplicateur ?? 0.003m) * req.ValeurVenale, 3);
                     break;
 
                 case "incendie":
-                    detail["Incendie"] = Math.Round((config?.IncendieFixe ?? 30.000m) + (config?.IncendieMultiplicateur ?? 0.003m) * req.ValeurVenale, 3);
+                    detail["Incendie"] = Math.Round((config?.IncendieFixe ?? 30.000m) + (config?.IncendieMultiplicateur ?? 0.0035m) * req.ValeurVenale, 3);
                     break;
 
                 case "defense_recours":
-                    detail["Défense et recours"] = config?.DefenseRecours ?? 20.000m;
+                    detail["Défense et recours"] = config?.DefenseRecours ?? 25.000m;
                     break;
 
                 case "dommages_vehicule":
@@ -150,7 +150,7 @@ public static class DevisPricingCalculator
                     }
                     else if (FranchiseDommagesVehicule.TryGetValue(req.NiveauFranchiseDommages, out var f))
                     {
-                        detail["Dommages subis par le véhicule"] = Math.Round(f.primeBase + (f.surprimePourMille / 1000m) * req.ValeurCatalogue, 3);
+                        detail["Dommages subis par le véhicule"] = Math.Round(f.primeBase + (25.0m / 1000m) * req.ValeurCatalogue, 3);
                     }
                     else
                     {
@@ -159,11 +159,11 @@ public static class DevisPricingCalculator
                     break;
 
                 case "dommages_collision":
-                    detail["Dommages collision"] = Math.Round((config?.DommagesCollisionMultiplicateur ?? 0.07m) * req.ValeurVenale, 3);
+                    detail["Dommages collision"] = Math.Round((config?.DommagesCollisionMultiplicateur ?? 0.025m) * req.ValeurVenale, 3);
                     break;
 
                 case "bris_glace":
-                    detail["Bris de glace"] = Math.Round((config?.BrisGlaceMultiplicateur ?? 0.05m) * req.ValeurVenale, 3);
+                    detail["Bris de glace"] = Math.Round(25.000m + (config?.BrisGlaceMultiplicateur ?? 0.005m) * req.ValeurVenale, 3);
                     break;
 
                 case "assistance_gold":
@@ -171,7 +171,7 @@ public static class DevisPricingCalculator
                     break;
 
                 case "accessoire_police":
-                    detail["Accessoire police"] = config?.AccessoirePolice ?? 40.000m;
+                    detail["Accessoire police & taxes"] = config?.AccessoirePolice ?? 35.000m;
                     break;
 
                 default:
