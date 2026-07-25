@@ -1026,6 +1026,7 @@ CONSIGNES STRICTES :
     {
         int pf = 6;
         string usage = "prive";
+        string situationClient = "classe_connue";
         int bonusMalus = 4;
         string carModel = "Véhicule";
         int annee = 2020;
@@ -1046,7 +1047,21 @@ CONSIGNES STRICTES :
             // 2. Usage
             if (textLower.Contains("affaire") || textLower.Contains("pro")) usage = "affaire";
 
-            // 3. Modèle / Année
+            // 3. Situation Client / Bonus-Malus
+            if (textLower.Contains("nouveau") || textLower.Contains("resili") || textLower.Contains("novice") || textLower.Contains("1er") || textLower.Contains("premier"))
+            {
+                situationClient = "novice_ou_resilie_2ans";
+            }
+            else if (textLower.Contains("2ème") || textLower.Contains("deuxième") || textLower.Contains("2eme") || textLower.Contains("second"))
+            {
+                situationClient = "deuxieme_vehicule";
+            }
+            else if (textLower.Contains("fonction"))
+            {
+                situationClient = "voiture_fonction";
+            }
+
+            // 4. Modèle / Année
             var yearMatch = System.Text.RegularExpressions.Regex.Match(text, @"(19\d\d|20\d\d)");
             if (yearMatch.Success)
             {
@@ -1055,7 +1070,7 @@ CONSIGNES STRICTES :
                 if (!string.IsNullOrWhiteSpace(cleanedModel) && cleanedModel.Length > 2) carModel = cleanedModel;
             }
 
-            // 4. Garanties
+            // 5. Garanties
             if (textLower.Contains("vol")) garanties.Add("vol");
             if (textLower.Contains("incendie")) garanties.Add("incendie");
             if (textLower.Contains("bris") || textLower.Contains("glace")) garanties.Add("bris_glace");
@@ -1120,6 +1135,7 @@ CONSIGNES STRICTES :
         {
             PuissanceFiscale = pf,
             Usage = usage,
+            SituationClient = situationClient,
             ClasseBonusMalus = bonusMalus,
             ValeurVenale = valeurVenale,
             ValeurCatalogue = valeurCatalogue,
@@ -1194,6 +1210,7 @@ CONSIGNES STRICTES :
             {
                 PuissanceFiscale = GetInt("puissance_fiscale", 0),
                 Usage = GetString("usage", "prive"),
+                SituationClient = GetString("situation_client", "classe_connue"),
                 ClasseBonusMalus = GetInt("classe_bonus_malus", 4),
                 ValeurVenale = GetDecimal("valeur_venale"),
                 ValeurCatalogue = GetDecimal("valeur_catalogue"),
