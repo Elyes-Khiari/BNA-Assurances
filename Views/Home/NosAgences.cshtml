@@ -2,37 +2,625 @@
     ViewData["Title"] = "Nos Agences";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        /* ── Map Container ─────────────────────────────────────────────────── */
+        #agencyMap {
+            height: 100%;
+            min-height: 500px;
+            border-radius: 1.25rem;
+            z-index: 1;
+        }
+
+        /* ── Custom Marker Pulse ───────────────────────────────────────────── */
+        .bna-marker {
+            width: 32px; height: 32px;
+            background: #00A86B;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,168,107,.45);
+            transition: transform .2s, box-shadow .2s;
+        }
+        .bna-marker.active {
+            transform: scale(1.35);
+            box-shadow: 0 0 0 8px rgba(0,168,107,.18), 0 2px 12px rgba(0,168,107,.5);
+        }
+
+        .user-marker {
+            width: 18px; height: 18px;
+            background: #3B82F6;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 6px rgba(59,130,246,.22);
+            animation: userPulse 2s infinite;
+        }
+        @@keyframes userPulse {
+            0%, 100% { box-shadow: 0 0 0 6px rgba(59,130,246,.22); }
+            50% { box-shadow: 0 0 0 14px rgba(59,130,246,.08); }
+        }
+
+        /* ── Sidebar & Cards ──────────────────────────────────────────────── */
+        .agency-sidebar {
+            max-height: calc(100vh - 12rem);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #e5e7eb transparent;
+        }
+        .agency-sidebar::-webkit-scrollbar { width: 5px; }
+        .agency-sidebar::-webkit-scrollbar-track { background: transparent; }
+        .agency-sidebar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+
+        .agency-card {
+            background: #fff;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            border: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: all .25s cubic-bezier(.4,0,.2,1);
+        }
+        .agency-card:hover {
+            border-color: #00A86B33;
+            box-shadow: 0 4px 20px rgba(0,168,107,.1);
+            transform: translateY(-2px);
+        }
+        .agency-card.selected {
+            border-color: #00A86B;
+            box-shadow: 0 4px 24px rgba(0,168,107,.16);
+            background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 99px;
+        }
+        .status-badge.open { background: #dcfce7; color: #15803d; }
+        .status-badge.closed { background: #fee2e2; color: #b91c1c; }
+
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .status-dot.open { background: #22c55e; animation: dotPulse 1.5s infinite; }
+        .status-dot.closed { background: #ef4444; }
+        @@keyframes dotPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+
+        .distance-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 99px;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 99px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #334155;
+            transition: all .2s;
+            text-decoration: none;
+        }
+        .action-btn:hover {
+            border-color: #00A86B;
+            color: #00A86B;
+            background: #f0fdf4;
+        }
+        .action-btn.primary {
+            background: #00A86B;
+            color: #fff;
+            border-color: #00A86B;
+        }
+        .action-btn.primary:hover {
+            background: #007A4D;
+            border-color: #007A4D;
+        }
+
+        /* ── Geo Button ────────────────────────────────────────────────────── */
+        .geo-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 22px;
+            background: linear-gradient(135deg, #00A86B 0%, #007A4D 100%);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border-radius: 99px;
+            border: none;
+            cursor: pointer;
+            transition: all .25s;
+            box-shadow: 0 4px 14px rgba(0,168,107,.3);
+        }
+        .geo-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,168,107,.4);
+        }
+        .geo-btn:active { transform: scale(.97); }
+        .geo-btn.loading { opacity: .7; pointer-events: none; }
+
+        /* ── Search & Filter Bar ───────────────────────────────────────────── */
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.875rem;
+            font-size: 0.9rem;
+            background: #fff;
+            transition: all .2s;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: #00A86B;
+            box-shadow: 0 0 0 3px rgba(0,168,107,.12);
+        }
+
+        .filter-select {
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.875rem;
+            font-size: 0.85rem;
+            background: #fff;
+            cursor: pointer;
+            outline: none;
+            color: #334155;
+            transition: all .2s;
+        }
+        .filter-select:focus {
+            border-color: #00A86B;
+            box-shadow: 0 0 0 3px rgba(0,168,107,.12);
+        }
+
+        .filter-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+        .filter-check input[type="checkbox"] {
+            accent-color: #00A86B;
+            width: 16px; height: 16px;
+        }
+
+        /* ── Stats Bar ─────────────────────────────────────────────────────── */
+        .stats-bar {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,.6);
+            backdrop-filter: blur(8px);
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .stat-item i { opacity: .8; }
+
+        /* ── Counter badge ─────────────────────────────────────────────────── */
+        .results-count {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            padding: 6px 0;
+        }
+
+        /* ── Leaflet Popup Override ─────────────────────────────────────────  */
+        .leaflet-popup-content-wrapper {
+            border-radius: 1rem !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,.12) !important;
+            padding: 0 !important;
+        }
+        .leaflet-popup-content {
+            margin: 0 !important;
+            font-family: 'Inter', sans-serif;
+        }
+        .popup-inner {
+            padding: 16px 20px;
+        }
+        .popup-inner h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 1rem;
+            color: #0D2F5E;
+            margin: 0 0 6px;
+        }
+        .popup-inner p {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 0 0 4px;
+        }
+    </style>
+}
+
 <section class="shell-hero">
     <div class="hero-pattern" aria-hidden="true"></div>
     <div class="mx-auto max-w-7xl px-5 lg:px-8">
-        <span class="eyebrow-pill border-white/15 bg-white/10 text-white">Nos agences</span>
-        <h1 class="mt-6 max-w-4xl font-display text-5xl font-extrabold leading-tight md:text-6xl">Un réseau national à portée de main.</h1>
-        <p class="mt-5 max-w-2xl text-lg leading-8 text-white/72">Placeholder de recherche d'agences avec carte et liste de points de contact.</p>
+        <span class="eyebrow-pill border-white/15 bg-white/10 text-white"><i data-lucide="map-pin" class="h-4 w-4"></i> Nos agences</span>
+        <h1 class="mt-6 max-w-4xl font-display text-5xl font-extrabold leading-tight md:text-6xl">
+            Un réseau national <span class="text-bnaGreen">à portée de main.</span>
+        </h1>
+        <p class="mt-5 max-w-2xl text-lg leading-8 text-white/72">
+            Retrouvez l'agence BNA Assurances la plus proche de chez vous parmi nos points de contact répartis sur tout le territoire tunisien.
+        </p>
+        <div class="stats-bar mt-8">
+            <div class="stat-item"><i data-lucide="building-2" class="h-4 w-4"></i> <span id="totalAgencies">0</span> agences</div>
+            <div class="stat-item"><i data-lucide="map" class="h-4 w-4"></i> 24 gouvernorats</div>
+            <div class="stat-item"><i data-lucide="clock" class="h-4 w-4"></i> Lun — Ven, 8h — 16h</div>
+        </div>
     </div>
 </section>
 
-<section class="bg-bnaWarm py-16 lg:py-24">
-    <div class="mx-auto grid max-w-7xl gap-6 px-5 lg:grid-cols-[1.3fr_0.7fr] lg:px-8">
-        <div class="placeholder-map grid place-items-center p-8 text-center">
-            <div>
-                <i class="mx-auto h-12 w-12 text-bnaGreen" data-lucide="map"></i>
-                <h2 class="mt-4 font-display text-2xl font-extrabold text-bnaNavy">Carte interactive</h2>
-                <p class="mt-2 text-slate-500">Zone réservée à la carte des agences.</p>
+<section class="bg-bnaWarm py-10 lg:py-16">
+    <div class="mx-auto max-w-7xl px-5 lg:px-8">
+
+        <!-- ── Toolbar ──────────────────────────────────────────────────── -->
+        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center flex-1">
+                <div class="relative flex-1 max-w-md">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher une agence, ville ou adresse..." autocomplete="off" />
+                </div>
+                <select id="govFilter" class="filter-select">
+                    <option value="">Tous les gouvernorats</option>
+                </select>
+                <label class="filter-check">
+                    <input type="checkbox" id="openNowFilter" />
+                    Ouvertes maintenant
+                </label>
             </div>
+            <button id="geoBtn" class="geo-btn" type="button">
+                <i data-lucide="locate-fixed" class="h-5 w-5"></i>
+                Me géolocaliser
+            </button>
         </div>
-        <div class="grid gap-4">
-            <article class="shell-card">
-                <h2 class="font-display text-lg font-extrabold text-bnaNavy">Agence Tunis Centre</h2>
-                <p class="mt-2 text-sm text-slate-500">Adresse, horaires et contact à intégrer.</p>
-            </article>
-            <article class="shell-card">
-                <h2 class="font-display text-lg font-extrabold text-bnaNavy">Agence Sfax</h2>
-                <p class="mt-2 text-sm text-slate-500">Adresse, horaires et contact à intégrer.</p>
-            </article>
-            <article class="shell-card">
-                <h2 class="font-display text-lg font-extrabold text-bnaNavy">Agence Sousse</h2>
-                <p class="mt-2 text-sm text-slate-500">Adresse, horaires et contact à intégrer.</p>
-            </article>
+
+        <div class="results-count mb-3" id="resultsCount"></div>
+
+        <!-- ── Grid : Sidebar + Map ──────────────────────────────────── -->
+        <div class="grid gap-6 lg:grid-cols-[0.42fr_1fr]">
+            <!-- Sidebar -->
+            <div class="agency-sidebar space-y-4" id="agencyList">
+                <!-- Cards injected by JS -->
+            </div>
+
+            <!-- Map -->
+            <div class="relative rounded-[1.25rem] overflow-hidden shadow-lg ring-1 ring-black/5" style="min-height:560px;">
+                <div id="agencyMap"></div>
+            </div>
         </div>
     </div>
 </section>
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // ══════════════════════════════════════════════════════════════════
+        // DATASET — Agences BNA Assurances (Tunisie)
+        // ══════════════════════════════════════════════════════════════════
+        const agencies = [
+            { id: 1,  name: "Siège Social — Les Berges du Lac", gov: "Tunis",     address: "Rue du Lac d'Annecy, Les Berges du Lac 1053",    lat: 36.8436, lng: 10.2747, phone: "+216 31 350 000", email: "contact@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 2,  name: "Agence Tunis Centre",              gov: "Tunis",     address: "Av. Habib Bourguiba, Tunis 1000",                lat: 36.8008, lng: 10.1800, phone: "+216 71 830 000", email: "tunis.centre@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 3,  name: "Agence La Marsa",                  gov: "Tunis",     address: "Rue du Maroc, La Marsa 2078",                    lat: 36.8785, lng: 10.3247, phone: "+216 71 749 200", email: "lamarsa@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 4,  name: "Agence Ariana",                    gov: "Ariana",    address: "Av. Taïeb Mhiri, Ariana 2080",                   lat: 36.8625, lng: 10.1956, phone: "+216 71 700 500", email: "ariana@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 5,  name: "Agence Ben Arous",                 gov: "Ben Arous", address: "Av. Habib Bourguiba, Ben Arous 2013",             lat: 36.7533, lng: 10.2282, phone: "+216 71 381 600", email: "benarous@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 6,  name: "Agence Manouba",                   gov: "Manouba",   address: "Av. de l'Indépendance, Manouba 2010",             lat: 36.8101, lng: 10.0976, phone: "+216 71 602 300", email: "manouba@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 7,  name: "Agence Nabeul",                    gov: "Nabeul",    address: "Av. Habib Thameur, Nabeul 8000",                  lat: 36.4561, lng: 10.7376, phone: "+216 72 285 200", email: "nabeul@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 8,  name: "Agence Hammamet",                  gov: "Nabeul",    address: "Av. de la République, Hammamet 8050",              lat: 36.4004, lng: 10.6120, phone: "+216 72 262 100", email: "hammamet@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 9,  name: "Agence Sousse Centre",             gov: "Sousse",    address: "Av. Habib Bourguiba, Sousse 4000",                lat: 35.8256, lng: 10.6369, phone: "+216 73 225 400", email: "sousse@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 10, name: "Agence Sousse Sahloul",            gov: "Sousse",    address: "Cité Sahloul, Sousse 4054",                       lat: 35.8500, lng: 10.5900, phone: "+216 73 368 100", email: "sahloul@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 11, name: "Agence Monastir",                  gov: "Monastir",  address: "Av. Hédi Chaker, Monastir 5000",                  lat: 35.7770, lng: 10.8261, phone: "+216 73 461 800", email: "monastir@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 12, name: "Agence Mahdia",                    gov: "Mahdia",    address: "Av. Farhat Hached, Mahdia 5100",                   lat: 35.5047, lng: 11.0622, phone: "+216 73 681 400", email: "mahdia@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 13, name: "Agence Sfax Ville",                gov: "Sfax",      address: "Boulevard 14 Janvier, Sfax 3000",                 lat: 34.7406, lng: 10.7603, phone: "+216 74 400 300", email: "sfax@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 14, name: "Agence Sfax El Ain",               gov: "Sfax",      address: "Route de Tunis Km 3, Sfax 3021",                  lat: 34.7660, lng: 10.7520, phone: "+216 74 241 700", email: "sfax.elain@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 15, name: "Agence Bizerte",                   gov: "Bizerte",   address: "Rue d'Alger, Bizerte 7000",                       lat: 37.2746, lng: 9.8739,  phone: "+216 72 431 100", email: "bizerte@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 16, name: "Agence Gabès",                     gov: "Gabès",     address: "Av. Farhat Hached, Gabès 6000",                   lat: 33.8815, lng: 10.0982, phone: "+216 75 270 900", email: "gabes@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 17, name: "Agence Kairouan",                  gov: "Kairouan",  address: "Av. de la République, Kairouan 3100",              lat: 35.6781, lng: 10.0963, phone: "+216 77 226 500", email: "kairouan@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 18, name: "Agence Béja",                      gov: "Béja",      address: "Av. Habib Bourguiba, Béja 9000",                  lat: 36.7256, lng: 9.1817,  phone: "+216 78 455 200", email: "beja@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 19, name: "Agence Jendouba",                  gov: "Jendouba",  address: "Av. Habib Bourguiba, Jendouba 8100",               lat: 36.5011, lng: 8.7802,  phone: "+216 78 603 100", email: "jendouba@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 20, name: "Agence Le Kef",                    gov: "Le Kef",    address: "Rue 18 Janvier 1952, Le Kef 7100",                 lat: 36.1746, lng: 8.7098,  phone: "+216 78 224 300", email: "lekef@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 21, name: "Agence Gafsa",                     gov: "Gafsa",     address: "Av. Habib Bourguiba, Gafsa 2100",                 lat: 34.4250, lng: 8.7842,  phone: "+216 76 224 600", email: "gafsa@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 22, name: "Agence Tozeur",                    gov: "Tozeur",    address: "Av. Farhat Hached, Tozeur 2200",                   lat: 33.9197, lng: 8.1337,  phone: "+216 76 452 100", email: "tozeur@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 23, name: "Agence Médenine",                  gov: "Médenine",  address: "Av. Habib Bourguiba, Médenine 4100",               lat: 33.3549, lng: 10.5055, phone: "+216 75 640 200", email: "medenine@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 24, name: "Agence Djerba",                    gov: "Médenine",  address: "Zone touristique, Houmt Souk, Djerba 4180",        lat: 33.8750, lng: 10.8578, phone: "+216 75 650 800", email: "djerba@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 25, name: "Agence Tataouine",                 gov: "Tataouine", address: "Av. Habib Bourguiba, Tataouine 3200",              lat: 32.9299, lng: 10.4518, phone: "+216 75 860 300", email: "tataouine@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 26, name: "Agence Siliana",                   gov: "Siliana",   address: "Av. de la Liberté, Siliana 6100",                  lat: 36.0849, lng: 9.3748,  phone: "+216 78 872 100", email: "siliana@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 27, name: "Agence Kasserine",                 gov: "Kasserine", address: "Av. Habib Bourguiba, Kasserine 1200",               lat: 35.1676, lng: 8.8308,  phone: "+216 77 474 200", email: "kasserine@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 28, name: "Agence Sidi Bouzid",               gov: "Sidi Bouzid", address: "Av. de la République, Sidi Bouzid 9100",         lat: 34.9311, lng: 9.4838,  phone: "+216 76 625 300", email: "sidibouzid@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 29, name: "Agence Zaghouan",                  gov: "Zaghouan",  address: "Av. Habib Bourguiba, Zaghouan 1100",               lat: 36.4029, lng: 10.1429, phone: "+216 72 675 100", email: "zaghouan@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+            { id: 30, name: "Agence Kébili",                    gov: "Kébili",    address: "Av. Farhat Hached, Kébili 4200",                   lat: 33.7050, lng: 8.9650,  phone: "+216 75 490 200", email: "kebili@bna-assurances.com.tn", hours: { open: 8, close: 16 } },
+        ];
+
+        // ══════════════════════════════════════════════════════════════════
+        // INIT MAP
+        // ══════════════════════════════════════════════════════════════════
+        const map = L.map('agencyMap', { zoomControl: false }).setView([34.5, 9.5], 7);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 18
+        }).addTo(map);
+
+        // ── Marker management ─────────────────────────────────────────
+        const markers = {};
+        let selectedId = null;
+        let userLatLng = null;
+        let userMarkerLayer = null;
+
+        function createMarkerIcon(active) {
+            return L.divIcon({
+                className: '',
+                html: `<div class="bna-marker ${active ? 'active' : ''}"></div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -20]
+            });
+        }
+
+        agencies.forEach(a => {
+            const m = L.marker([a.lat, a.lng], { icon: createMarkerIcon(false) }).addTo(map);
+            m.bindPopup(buildPopupHtml(a), { maxWidth: 280, closeButton: true });
+            m.on('click', () => selectAgency(a.id));
+            markers[a.id] = m;
+        });
+
+        // ── Populate govFilter ────────────────────────────────────────
+        const govs = [...new Set(agencies.map(a => a.gov))].sort();
+        const govFilter = document.getElementById('govFilter');
+        govs.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g; opt.textContent = g;
+            govFilter.appendChild(opt);
+        });
+
+        document.getElementById('totalAgencies').textContent = agencies.length;
+
+        // ══════════════════════════════════════════════════════════════════
+        // HELPERS
+        // ══════════════════════════════════════════════════════════════════
+        function isOpenNow(a) {
+            const now = new Date();
+            const day = now.getDay(); // 0=Sun
+            if (day === 0 || day === 6) return false;
+            const h = now.getHours();
+            return h >= a.hours.open && h < a.hours.close;
+        }
+
+        function haversineKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function buildPopupHtml(a) {
+            const open = isOpenNow(a);
+            return `<div class="popup-inner">
+                <h3>${a.name}</h3>
+                <p>${a.address}</p>
+                <p style="margin-top:6px"><span class="status-badge ${open ? 'open' : 'closed'}"><span class="status-dot ${open ? 'open' : 'closed'}"></span>${open ? 'Ouvert' : 'Fermé'}</span></p>
+                <p style="margin-top:8px;font-size:.8rem;color:#0D2F5E;font-weight:600"><a href="tel:${a.phone.replace(/\s/g,'')}" style="color:#0D2F5E;text-decoration:none">📞 ${a.phone}</a></p>
+                <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${a.lat},${a.lng}" target="_blank" class="action-btn primary" style="font-size:.75rem">Itinéraire</a>
+                    <a href="tel:${a.phone.replace(/\s/g,'')}" class="action-btn" style="font-size:.75rem">Appeler</a>
+                </div>
+            </div>`;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // RENDER AGENCY CARDS
+        // ══════════════════════════════════════════════════════════════════
+        function renderCards(list) {
+            const container = document.getElementById('agencyList');
+            container.innerHTML = '';
+
+            if (list.length === 0) {
+                container.innerHTML = '<div class="text-center py-10 text-slate-400"><i data-lucide="search-x" class="mx-auto h-10 w-10 mb-3 opacity-40"></i><p class="font-semibold">Aucune agence trouvée</p><p class="text-sm mt-1">Essayez d\'autres termes de recherche.</p></div>';
+                if (window.lucide) window.lucide.createIcons();
+                return;
+            }
+
+            list.forEach(a => {
+                const open = isOpenNow(a);
+                const distHtml = a._dist != null ? `<span class="distance-badge"><i data-lucide="navigation" class="h-3 w-3"></i>${a._dist.toFixed(1)} km</span>` : '';
+                const card = document.createElement('div');
+                card.className = `agency-card ${selectedId === a.id ? 'selected' : ''}`;
+                card.dataset.id = a.id;
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="font-display text-sm font-extrabold text-bnaNavy leading-snug">${a.name}</h3>
+                            <p class="mt-1 text-xs text-slate-500">${a.address}</p>
+                        </div>
+                        <span class="status-badge ${open ? 'open' : 'closed'} flex-shrink-0">
+                            <span class="status-dot ${open ? 'open' : 'closed'}"></span>${open ? 'Ouvert' : 'Fermé'}
+                        </span>
+                    </div>
+                    <div class="mt-3 flex items-center gap-2 flex-wrap">
+                        ${distHtml}
+                        <span class="text-xs font-medium text-slate-400">${a.gov}</span>
+                    </div>
+                    <div class="mt-3 flex gap-2 flex-wrap">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${a.lat},${a.lng}" target="_blank" class="action-btn primary" onclick="event.stopPropagation()">
+                            <i data-lucide="navigation" class="h-3.5 w-3.5"></i> Itinéraire
+                        </a>
+                        <a href="tel:${a.phone.replace(/\s/g,'')}" class="action-btn" onclick="event.stopPropagation()">
+                            <i data-lucide="phone" class="h-3.5 w-3.5"></i> Appeler
+                        </a>
+                        <a href="mailto:${a.email}" class="action-btn" onclick="event.stopPropagation()">
+                            <i data-lucide="mail" class="h-3.5 w-3.5"></i> E-mail
+                        </a>
+                    </div>
+                `;
+                card.addEventListener('click', () => selectAgency(a.id));
+                container.appendChild(card);
+            });
+
+            document.getElementById('resultsCount').textContent = `${list.length} agence${list.length > 1 ? 's' : ''} trouvée${list.length > 1 ? 's' : ''}`;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // SELECT AGENCY
+        // ══════════════════════════════════════════════════════════════════
+        function selectAgency(id) {
+            // Deselect previous
+            if (selectedId && markers[selectedId]) {
+                markers[selectedId].setIcon(createMarkerIcon(false));
+            }
+            document.querySelectorAll('.agency-card.selected').forEach(c => c.classList.remove('selected'));
+
+            selectedId = id;
+            const a = agencies.find(x => x.id === id);
+            if (!a) return;
+
+            // Activate marker
+            markers[id].setIcon(createMarkerIcon(true));
+            map.flyTo([a.lat, a.lng], 14, { duration: 0.8 });
+            markers[id].openPopup();
+
+            // Highlight card
+            const card = document.querySelector(`.agency-card[data-id="${id}"]`);
+            if (card) {
+                card.classList.add('selected');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // FILTER & SEARCH
+        // ══════════════════════════════════════════════════════════════════
+        function getFiltered() {
+            const q = document.getElementById('searchInput').value.toLowerCase().trim();
+            const gov = govFilter.value;
+            const openOnly = document.getElementById('openNowFilter').checked;
+
+            let list = agencies.filter(a => {
+                if (q && !(a.name.toLowerCase().includes(q) || a.address.toLowerCase().includes(q) || a.gov.toLowerCase().includes(q))) return false;
+                if (gov && a.gov !== gov) return false;
+                if (openOnly && !isOpenNow(a)) return false;
+                return true;
+            });
+
+            // Compute distances if user position known
+            if (userLatLng) {
+                list.forEach(a => { a._dist = haversineKm(userLatLng.lat, userLatLng.lng, a.lat, a.lng); });
+                list.sort((a, b) => a._dist - b._dist);
+            } else {
+                list.forEach(a => { a._dist = null; });
+            }
+
+            return list;
+        }
+
+        function applyFilters() {
+            const filtered = getFiltered();
+            renderCards(filtered);
+
+            // Show / hide markers
+            agencies.forEach(a => {
+                if (filtered.find(f => f.id === a.id)) {
+                    if (!map.hasLayer(markers[a.id])) markers[a.id].addTo(map);
+                } else {
+                    map.removeLayer(markers[a.id]);
+                }
+            });
+
+            // Fit bounds
+            if (filtered.length > 0) {
+                const group = L.featureGroup(filtered.map(a => markers[a.id]));
+                if (userMarkerLayer) group.addLayer(userMarkerLayer);
+                map.fitBounds(group.getBounds().pad(0.15), { maxZoom: 13 });
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        govFilter.addEventListener('change', applyFilters);
+        document.getElementById('openNowFilter').addEventListener('change', applyFilters);
+
+        // ══════════════════════════════════════════════════════════════════
+        // GEOLOCATION
+        // ══════════════════════════════════════════════════════════════════
+        const geoBtn = document.getElementById('geoBtn');
+        geoBtn.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                alert("La géolocalisation n'est pas supportée par votre navigateur.");
+                return;
+            }
+
+            geoBtn.classList.add('loading');
+            geoBtn.innerHTML = '<i data-lucide="loader-2" class="h-5 w-5 animate-spin"></i> Localisation en cours...';
+            if (window.lucide) window.lucide.createIcons();
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+                    // User marker
+                    if (userMarkerLayer) map.removeLayer(userMarkerLayer);
+                    userMarkerLayer = L.marker([userLatLng.lat, userLatLng.lng], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div class="user-marker"></div>',
+                            iconSize: [18, 18],
+                            iconAnchor: [9, 9]
+                        })
+                    }).addTo(map).bindPopup('<div class="popup-inner"><h3>Vous êtes ici</h3></div>');
+
+                    geoBtn.classList.remove('loading');
+                    geoBtn.innerHTML = '<i data-lucide="check-circle" class="h-5 w-5"></i> Position détectée';
+                    if (window.lucide) window.lucide.createIcons();
+
+                    setTimeout(() => {
+                        geoBtn.innerHTML = '<i data-lucide="locate-fixed" class="h-5 w-5"></i> Me géolocaliser';
+                        if (window.lucide) window.lucide.createIcons();
+                    }, 3000);
+
+                    applyFilters();
+                },
+                (err) => {
+                    geoBtn.classList.remove('loading');
+                    geoBtn.innerHTML = '<i data-lucide="locate-fixed" class="h-5 w-5"></i> Me géolocaliser';
+                    if (window.lucide) window.lucide.createIcons();
+                    alert("Impossible de déterminer votre position. Veuillez autoriser la géolocalisation dans votre navigateur.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+
+        // ── Initial render ────────────────────────────────────────────
+        applyFilters();
+    });
+    </script>
+}
