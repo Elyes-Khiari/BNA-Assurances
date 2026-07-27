@@ -41,7 +41,7 @@ public class AccountController : Controller
         client.DefaultRequestHeaders.Add("apikey", supabaseKey);
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
 
-        var response = await client.GetAsync($"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{email}&PasswordHash=eq.{password}&select=*");
+        var response = await client.GetAsync($"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{Uri.EscapeDataString(email)}&select=*");
         var responseContent = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode || responseContent == "[]")
@@ -52,6 +52,24 @@ public class AccountController : Controller
 
         using var cDoc = System.Text.Json.JsonDocument.Parse(responseContent);
         var authUser = cDoc.RootElement[0];
+        
+        var dbHash = authUser.GetProperty("PasswordHash").GetString();
+        bool isPasswordValid = false;
+        try
+        {
+            isPasswordValid = BCrypt.Net.BCrypt.Verify(password, dbHash);
+        }
+        catch
+        {
+            // If dbHash is not a valid bcrypt hash (e.g. old test accounts)
+            isPasswordValid = false;
+        }
+
+        if (!isPasswordValid)
+        {
+            ViewBag.Error = "Email ou mot de passe incorrect.";
+            return View();
+        }
 
         var userModel = new ApplicationUser
         {
@@ -105,11 +123,12 @@ public class AccountController : Controller
         }
 
         // 3. Create User in Supabase
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
         var newUser = new System.Collections.Generic.Dictionary<string, string>
         {
             { "FullName", fullName },
             { "Email", email },
-            { "PasswordHash", password },
+            { "PasswordHash", hashedPassword },
             { "Role", "Client" },
             { "NumeroPermis", numeroPermis }
         };
@@ -317,9 +336,11 @@ public class AccountController : Controller
 
         var updateReq = new HttpRequestMessage(HttpMethod.Patch, $"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{Uri.EscapeDataString(email)}");
         
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        
         var payload = new System.Collections.Generic.Dictionary<string, string?>
         {
-            { "PasswordHash", newPassword },
+            { "PasswordHash", hashedPassword },
             { "ResetCode", null },
             { "ResetCodeExpires", null }
         };

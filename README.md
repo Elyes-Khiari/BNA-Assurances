@@ -81,8 +81,9 @@ L'application s'appuie sur **ASP.NET Core 8 MVC**, **Supabase** (PostgreSQL + pg
 | Fonctionnalité | Description |
 |---|---|
 | **Inscription avec vérification** | Validation du numéro de permis contre la base `ClientRecords` |
-| **Connexion sécurisée** | Authentification par cookies ASP.NET Core (durée 30 jours) |
+| **Connexion sécurisée** | Authentification par cookies ASP.NET Core (durée 30 jours) et mots de passe hachés avec `BCrypt.Net-Next` |
 | **Rôles** | `Client` (suivi réclamations) et `Assureur` (gestion back-office) |
+| **Mot de passe oublié** | Flux sécurisé par code de vérification à 6 chiffres envoyé par SendGrid SMTP |
 
 ---
 
@@ -129,6 +130,7 @@ L'application s'appuie sur **ASP.NET Core 8 MVC**, **Supabase** (PostgreSQL + pg
 | **Npgsql** | Driver PostgreSQL natif pour .NET |
 | **QuestPDF** | Génération de documents PDF professionnels |
 | **HtmlAgilityPack** | Web scraping HTML pour la recherche de prix véhicules |
+| **BCrypt.Net-Next** | Hachage sécurisé des mots de passe utilisateurs |
 
 ### Base de Données & Cloud
 | Technologie | Rôle |
@@ -255,37 +257,27 @@ cd BNA-Assurances
 dotnet restore
 ```
 
-### 3. Configurer `appsettings.json`
+### 3. Configuration & Gestion des Secrets
 
-Créez ou modifiez le fichier `appsettings.json` avec vos propres clés :
+Par mesure de sécurité (Production Level), les mots de passe et clés API ne doivent **pas** être écrits en clair dans `appsettings.json`. Le projet utilise le Secret Manager de .NET (`dotnet user-secrets`) pour le développement local.
 
-```json
-{
-  "Groq": {
-    "ApiKey": "<VOTRE_CLE_GROQ>"
-  },
-  "OpenRouter": {
-    "ApiKey": "<VOTRE_CLE_OPENROUTER>"
-  },
-  "Supabase": {
-    "Url": "https://<VOTRE_PROJET>.supabase.co",
-    "ServiceKey": "<VOTRE_SERVICE_ROLE_KEY>"
-  },
-  "EmbeddingService": {
-    "Url": "http://127.0.0.1:8000"
-  },
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=<HOST>;Database=postgres;Username=postgres;Password=<PASSWORD>"
-  },
-  "SmtpSettings": {
-    "Host": "smtp.sendgrid.net",
-    "Port": 587,
-    "Username": "apikey",
-    "Password": "<VOTRE_CLE_API_SENDGRID>",
-    "From": "<VOTRE_EMAIL_VERIFIE>"
-  }
-}
+Initialisez d'abord les secrets dans le dossier du projet :
+
+```bash
+dotnet user-secrets init
 ```
+
+Ensuite, ajoutez vos clés privées via ces commandes :
+
+```bash
+dotnet user-secrets set "Groq:ApiKey" "<VOTRE_CLE_GROQ>"
+dotnet user-secrets set "OpenRouter:ApiKey" "<VOTRE_CLE_OPENROUTER>"
+dotnet user-secrets set "Supabase:ServiceKey" "<VOTRE_SERVICE_ROLE_KEY>"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=<HOST>;Port=5432;Database=postgres;Username=postgres;Password=<PASSWORD>;Ssl Mode=Require;Trust Server Certificate=true;"
+dotnet user-secrets set "SmtpSettings:Password" "<VOTRE_CLE_API_SENDGRID>"
+```
+
+*Remarque : En production (ex: sur Azure, AWS, Render), vous devrez définir ces clés en tant que **Variables d'Environnement** au lieu d'utiliser `user-secrets`.*
 
 ### 4. Configurer le service d'embeddings (Python)
 
