@@ -12,11 +12,13 @@ public class AccountController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _config;
+    private readonly AssuranceApp.Services.EmailService _emailService;
 
-    public AccountController(AppDbContext context, IConfiguration config)
+    public AccountController(AppDbContext context, IConfiguration config, AssuranceApp.Services.EmailService emailService)
     {
         _context = context;
         _config = config;
+        _emailService = emailService;
     }
 
     [HttpGet]
@@ -172,5 +174,159 @@ public class AccountController : Controller
                 IsPersistent = true,
                 ExpiresUtc = DateTime.UtcNow.AddDays(30)
             });
+    }
+
+    [HttpGet]
+    public IActionResult ForgotPassword()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ForgotPassword(string email)
+    {
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("apikey", supabaseKey);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
+
+        var response = await client.GetAsync($"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{email}&select=Id");
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode || responseContent == "[]")
+        {
+            ViewBag.Message = "Si un compte avec cet e-mail existe, un code a été envoyé.";
+            return View();
+        }
+
+        var random = new Random();
+        var code = random.Next(100000, 999999).ToString();
+        var expires = DateTime.UtcNow.AddMinutes(15).ToString("O");
+
+        var updateReq = new HttpRequestMessage(HttpMethod.Patch, $"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{Uri.EscapeDataString(email)}");
+        
+        var payload = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "ResetCode", code },
+            { "ResetCodeExpires", expires }
+        };
+        updateReq.Content = System.Net.Http.Json.JsonContent.Create(payload);
+        
+        var patchRes = await client.SendAsync(updateReq);
+        
+        if (!patchRes.IsSuccessStatusCode)
+        {
+            var err = await patchRes.Content.ReadAsStringAsync();
+            ViewBag.Message = $"Erreur DB: {patchRes.StatusCode} - {err}";
+            return View();
+        }
+
+        var body = $"Votre code de vérification est: <b>{code}</b>. Il expire dans 15 minutes.";
+        await _emailService.SendEmailAsync(email, "Code de réinitialisation de mot de passe", body);
+
+        TempData["ResetEmail"] = email;
+        return RedirectToAction("VerifyCode");
+    }
+
+    [HttpGet]
+    public IActionResult VerifyCode()
+    {
+        if (TempData["ResetEmail"] == null)
+        {
+            return RedirectToAction("ForgotPassword");
+        }
+        
+        TempData.Keep("ResetEmail");
+        return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> VerifyCode(string code)
+    {
+        code = code?.Trim();
+        var email = TempData["ResetEmail"]?.ToString();
+        if (string.IsNullOrEmpty(email))
+        {
+            return RedirectToAction("ForgotPassword");
+        }
+
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("apikey", supabaseKey);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
+
+        var response = await client.GetAsync($"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{Uri.EscapeDataString(email)}&select=ResetCode,ResetCodeExpires");
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode || responseContent == "[]")
+        {
+            ViewBag.Error = "Erreur lors de la vérification.";
+            TempData.Keep("ResetEmail");
+            return View();
+        }
+
+        using var cDoc = System.Text.Json.JsonDocument.Parse(responseContent);
+        var dbUser = cDoc.RootElement[0];
+        var dbCode = dbUser.GetProperty("ResetCode").GetString();
+        
+        DateTime? expires = null;
+        if (dbUser.TryGetProperty("ResetCodeExpires", out var expiresProp) && expiresProp.ValueKind != System.Text.Json.JsonValueKind.Null)
+        {
+            if (DateTime.TryParse(expiresProp.GetString(), out var d))
+                expires = d.ToUniversalTime();
+        }
+
+        if (dbCode != code || expires == null || expires < DateTime.UtcNow)
+        {
+            ViewBag.Error = "Le code est invalide ou a expiré.";
+            TempData.Keep("ResetEmail");
+            return View();
+        }
+
+        TempData["ResetVerifiedEmail"] = email;
+        return RedirectToAction("ResetPassword");
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword()
+    {
+        if (TempData["ResetVerifiedEmail"] == null)
+        {
+            return RedirectToAction("ForgotPassword");
+        }
+        TempData.Keep("ResetVerifiedEmail");
+        return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ResetPassword(string newPassword)
+    {
+        var email = TempData["ResetVerifiedEmail"]?.ToString();
+        if (string.IsNullOrEmpty(email))
+        {
+            return RedirectToAction("ForgotPassword");
+        }
+
+        var supabaseUrl = _config["Supabase:Url"];
+        var supabaseKey = _config["Supabase:ServiceKey"];
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("apikey", supabaseKey);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
+
+        var updateReq = new HttpRequestMessage(HttpMethod.Patch, $"{supabaseUrl}/rest/v1/ApplicationUsers?Email=eq.{Uri.EscapeDataString(email)}");
+        
+        var payload = new System.Collections.Generic.Dictionary<string, string?>
+        {
+            { "PasswordHash", newPassword },
+            { "ResetCode", null },
+            { "ResetCodeExpires", null }
+        };
+        updateReq.Content = System.Net.Http.Json.JsonContent.Create(payload);
+        
+        await client.SendAsync(updateReq);
+
+        return RedirectToAction("Login");
     }
 }

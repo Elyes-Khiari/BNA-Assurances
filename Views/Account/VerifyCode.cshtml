@@ -1,0 +1,51 @@
+@{
+    ViewData["Title"] = "Vérifier le code";
+}
+
+<div class="flex min-h-[80vh] items-center justify-center bg-bnaWarm px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-md space-y-8 rounded-2xl bg-white p-10 shadow-xl border border-slate-100">
+        <div>
+            <h2 class="mt-2 text-center text-3xl font-bold tracking-tight text-bnaNavy font-display">
+                @ViewData["Title"]
+            </h2>
+            <p class="mt-3 text-center text-sm text-slate-500">
+                Un code à 6 chiffres a été envoyé à <b>@TempData["ResetEmail"]</b>.<br />
+                Veuillez l'entrer ci-dessous. Il expire dans 15 minutes.
+            </p>
+        </div>
+
+        @if (ViewBag.Error != null)
+        {
+            <div class="rounded-md bg-red-50 p-4 border border-red-200 mt-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
+                    </div>
+                    <div class="ml-3 text-sm text-red-700">
+                        @ViewBag.Error
+                    </div>
+                </div>
+            </div>
+        }
+
+        <form class="mt-8 space-y-6" asp-action="VerifyCode" method="post">
+            <div class="space-y-4 rounded-md shadow-sm">
+                <div>
+                    <label for="code" class="block text-sm font-medium text-slate-700 mb-1 text-center">Code de vérification</label>
+                    <input id="code" name="code" type="text" autocomplete="one-time-code" required maxlength="6" pattern="\d{6}" placeholder="123456"
+                           class="relative block w-full rounded-lg border-0 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-300 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-bnaGreen">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 mt-6">
+                <button type="submit"
+                        class="group relative flex w-full justify-center rounded-lg bg-bnaGreen px-3 py-3 text-sm font-semibold text-white hover:bg-bnaDeepGreen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bnaGreen transition shadow-md">
+                    Vérifier
+                </button>
+                <div class="text-center text-sm">
+                    <a asp-action="Login" class="font-medium text-slate-500 hover:text-slate-700 transition">Annuler</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

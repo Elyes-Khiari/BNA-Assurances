@@ -13,4 +13,8 @@ public class ApplicationUser
     public string Role { get; set; } = string.Empty;
 
     public string NumeroPermis { get; set; } = string.Empty;
+
+    public string? ResetCode { get; set; }
+
+    public DateTime? ResetCodeExpires { get; set; }
 }

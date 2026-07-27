@@ -21,6 +21,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<ReclamationService>();
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 
