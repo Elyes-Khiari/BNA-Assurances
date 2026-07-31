@@ -1,7 +1,20 @@
 bin/
 obj/
 *.user
-appsettings.json
 appsettings.Development.json
 AI/.env
 secrets.json
+
+# Python
+AI/.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vs/
+.vscode/
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store
